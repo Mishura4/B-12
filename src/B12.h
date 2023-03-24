@@ -29,12 +29,6 @@ using shion::string_literal;
 using namespace shion::types;
 using namespace std::string_view_literals;
 
-template <typename T, typename U, typename... Args>
-	concept executor_routine = requires(T t, U* u, Args... args)
-{
-	std::invoke(t, u, std::forward<Args>(args)..., );
-};
-
 namespace B12
 {
 	using shion::io::LogLevel;

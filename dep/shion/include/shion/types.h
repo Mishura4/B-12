@@ -73,7 +73,7 @@ namespace shion
     requires(std::is_enum_v<T>)
   constexpr T &operator|=(T &lhs, const T &rhs)
   {
-    lhs = T{std::to_underlying(lhs) | std::to_underlying(rhs)};
+    lhs = T{static_cast<std::underlying_type_t<T>>(lhs) | static_cast<std::underlying_type_t<T>>(rhs)};
     return (lhs);
   }
 

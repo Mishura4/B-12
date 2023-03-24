@@ -36,7 +36,7 @@ set_target_properties(B12
     PROPERTIES
         LINKER_LANGUAGE CXX
 )
-target_compile_features(B12 PUBLIC cxx_std_23)
+target_compile_features(B12 PUBLIC cxx_std_20)
 
 add_subdirectory(dep)
 

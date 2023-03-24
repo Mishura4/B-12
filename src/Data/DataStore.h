@@ -256,7 +256,7 @@ namespace B12
 				}
 
 				template <size_t... N>
-				constexpr void fillFieldRelationalList(std::stringstream& oss, std::index_sequence<N...>)
+				void fillFieldRelationalList(std::stringstream& oss, std::index_sequence<N...>)
 				{
 					std::stringstream ss;
 
