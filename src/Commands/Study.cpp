@@ -43,9 +43,9 @@ void Bot::command<"study">(
 	}
 	B12::AsyncExecutor<dpp::confirmation> replyExecutor([&](const dpp::confirmation&) {});
 	const dpp::role&                       studyRole = guild->studyRole().value();
-	replyExecutor(&dpp::interaction_create_t::thinking, &e, true);
-
 	const dpp::guild_member& issuer = interaction.member;
+
+	replyExecutor(&dpp::interaction_create_t::thinking, &e, true);
 	if (std::ranges::find(issuer.roles, studyRole.id) != issuer.roles.end())
 	{
 		B12::AsyncExecutor<dpp::confirmation> roleExecutor(

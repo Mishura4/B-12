@@ -29,6 +29,12 @@ using shion::string_literal;
 using namespace shion::types;
 using namespace std::string_view_literals;
 
+template <typename T, typename U, typename... Args>
+	concept executor_routine = requires(T t, U* u, Args... args)
+{
+	std::invoke(t, u, std::forward<Args>(args)..., );
+};
+
 namespace B12
 {
 	using shion::io::LogLevel;
@@ -45,6 +51,8 @@ namespace B12
 			log(level, fmt::format(fmt, std::forward<Args>(args)...));
 	}
 
+	// Class to streamline the execution of D++'s async request API
+	// TODO doc on how to use, in the meantime one can look at the Study command
 	template <typename Arg>
 	class AsyncExecutor
 	{
@@ -88,19 +96,15 @@ namespace B12
 			_on_success(success_callback),
 			_on_error(error_callback) { }
 
-		template <typename T, typename U, typename... Args>
-			requires(requires(T t, U* u, Args... args)
-			{
-				std::invoke(t, u, std::forward<Args>(args)..., [](const dpp::confirmation_callback_t&) {});
-			})
-
-		void operator()(T&& routine, U* obj, Args&&... args)
+		template <typename T, typename... Args>
+		requires (std::invocable<T, Args..., decltype(_rest_callback)>)
+		void operator()(T&& routine, Args&&... args)
 		{
 			std::scoped_lock lock(_mutex);
 			assert(_complete);
 
 			_complete = false;
-			std::invoke(routine, obj, std::forward<Args>(args)..., _rest_callback);
+			std::invoke(routine, std::forward<Args>(args)..., _rest_callback);
 		}
 
 		void wait()
