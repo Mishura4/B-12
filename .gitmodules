@@ -1,0 +1,12 @@
+[submodule "dep/DPP"]
+	path = dep/DPP
+	url = https://github.com/brainboxdotcc/DPP.git
+[submodule "dep/boost_pfr"]
+	path = dep/boost_pfr
+	url = https://github.com/boostorg/pfr.git
+[submodule "dep/magic_enum"]
+	path = dep/magic_enum
+	url = https://github.com/Neargye/magic_enum.git
+[submodule "dep/fmt"]
+	path = dep/fmt
+	url = https://github.com/fmtlib/fmt.git
