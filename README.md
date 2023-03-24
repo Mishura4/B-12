@@ -7,5 +7,6 @@ B-12 is a discord bot written in C++ using the library [D++](https://github.com/
 Compilation requires a patch on D++ to make clang-cl compilation work : see [dep/dpp-patch.diff](dep/dpp-patch.diff). I intend to create pull requests for D++ soon, so they can fix it upstream.
 
 ## License
-**B12 is currently licensed under CC BY-NC-ND 4.0.**
+#### B12 is currently licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+
 Feel free to pull the code, build it, run it, contribute via pull requests, however you may not distribute your modifications to the source code in any other way.
