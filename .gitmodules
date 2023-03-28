@@ -10,30 +10,15 @@
 [submodule "dep/fmt"]
 	path = dep/fmt
 	url = https://github.com/fmtlib/fmt.git
-[submodule "dep/cpr"]
-	path = dep/cpr
-	url = git@github.com:libcpr/cpr.git
 [submodule "dep/expected-lite"]
 	path = dep/expected-lite
-	url = git@github.com:martinmoene/expected-lite.git
+	url = https://github.com/martinmoene/expected-lite.git
 [submodule "dep/CImg"]
 	path = dep/CImg
 	url = https://github.com/GreycLab/CImg.git
-[submodule "dep/opencv"]
-	path = dep/opencv
-	url = git@github.com:opencv/opencv.git
-[submodule "dep/Simd"]
-	path = dep/Simd
-	url = git@github.com:ermig1979/Simd.git
-[submodule "dep/boost_gil"]
-	path = dep/boost_gil
-	url = git@github.com:boostorg/gil.git
-[submodule "dep/boost_mp11"]
-	path = dep/boost_mp11
-	url = git@github.com:boostorg/mp11.git
 [submodule "dep/libpng"]
 	path = dep/libpng
 	url = https://github.com/glennrp/libpng
 [submodule "dep/zlib"]
 	path = dep/zlib
-	url = git@github.com:madler/zlib.git
+	url = https://github.com/madler/zlib.git
