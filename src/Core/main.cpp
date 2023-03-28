@@ -71,7 +71,16 @@ int main(int argc, char* argv[])
 	if (args.size() > 1)
 		token = args[1];
 
-	auto ret = run(token);
+	int ret = EXIT_FAILURE;
+
+	try
+	{
+		ret = run(token);
+	}
+	catch (const std::exception &e)
+	{
+		throw;
+	}
 
 	cleaned_up = true;
 	app_cv.notify_all();

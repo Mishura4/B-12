@@ -6,6 +6,7 @@ set(COMMAND_SOURCES
     CommandTable.h
     MultiCommandProcess.cpp
     MultiCommandProcess.h
+    Sticker.cpp
     Study.cpp
     Study.h
 )

@@ -42,12 +42,18 @@ add_subdirectory(dep)
 
 target_include_directories(B12 PRIVATE src/)
 target_include_directories(B12 PRIVATE dep/shion/include)
+target_include_directories(B12 PRIVATE dep/libpng)
+target_include_directories(B12 PRIVATE dep/CImg)
+target_include_directories(B12 PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/dep/libpng)
 
 target_link_libraries(B12 PUBLIC fmt)
 target_link_libraries(B12 PUBLIC sqlite3)
 target_link_libraries(B12 PUBLIC dpp)
 target_link_libraries(B12 PUBLIC boost_pfr)
 target_link_libraries(B12 PUBLIC magic_enum)
+target_link_libraries(B12 PUBLIC nonstd::expected-lite)
+target_link_libraries(B12 PUBLIC zlibstatic)
+target_link_libraries(B12 PUBLIC png_static)
 
 target_compile_definitions(B12 PUBLIC _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
 
@@ -70,6 +76,8 @@ if(MSVC)
             $<TARGET_FILE:dpp>
             $<TARGET_FILE:fmt>
             $<TARGET_FILE:sqlite3>
+            $<TARGET_PDB_FILE:dpp>
+            $<TARGET_PDB_FILE:fmt>
 	        $<TARGET_FILE_DIR:B12>
     )
 else()

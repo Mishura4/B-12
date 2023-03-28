@@ -60,9 +60,9 @@ inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(
 		dpp::p_embed_links | dpp::p_send_messages,
 		make_option<"emoji">("Emoji to make bigger - for example :sadcat:", true, dpp::co_string)
 	),
-	make_command<"settings", shion::noop>("Change bot settings"),
-	make_command<"settings server", shion::noop>("Change server-specific bot settings"),
-	make_command<"settings server study">(
+	make_command<"server", shion::noop>("Server-level commands"),
+	make_command<"server settings", shion::noop>("Change server-specific bot settings"),
+	make_command<"server settings study">(
 		"Set up study mode",
 		dpp::p_manage_roles | dpp::p_manage_channels,
 		dpp::p_manage_roles,
@@ -70,7 +70,13 @@ inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(
 		CommandOption<"channel", 1>{
 			"Channel that will be used for the study mode",
 			false,
-			dpp::co_channel
-		}
+			dpp::co_channel}),
+	make_command<"server sticker", shion::noop>("Sticker-related commands"),
+	make_command<"server sticker grab">(
+		"Add a sticker from a message",
+		dpp::p_manage_emojis_and_stickers,
+		dpp::p_manage_emojis_and_stickers,
+		CommandOption<"message", 1>{"Message ID to grab from", true, dpp::co_string},
+		CommandOption<"channel", 1>{"Channel to grab from", false, dpp::co_mentionable}
 	)
 );

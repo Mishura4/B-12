@@ -1,8 +1,38 @@
 
+if ((${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC"))
+	set(CMAKE_C_COMPILER "${CMAKE_CXX_COMPILER}" CACHE STRING "Clang-cl C fix")
+endif()
+
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/fmt)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/boost_pfr)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/magic_enum)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/DPP)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/expected-lite)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/zlib "${CMAKE_CURRENT_BINARY_DIR}/zlib_build")
+
+set(PNG_BUILD_ZLIB ${CMAKE_CURRENT_LIST_DIR}/zlib)
+set(ZLIB_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_LIST_DIR}/zlib "${CMAKE_CURRENT_BINARY_DIR}/zlib_build")
+set(ZLIB_LIBRARIES zlibstatic)
+set(SKIP_INSTALL_EXPORT on)
+
+install(TARGETS zlibstatic
+EXPORT zlibstatic
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/libpng)
+
+target_include_directories(zlibstatic INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/zlib_build")
+target_include_directories(zlibstatic INTERFACE ${CMAKE_CURRENT_LIST_DIR}/zlib)
+target_include_directories(zlib INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/zlib_build")
+target_include_directories(zlib INTERFACE ${CMAKE_CURRENT_LIST_DIR}/zlib)
+
+configure_file(libpng/scripts/pnglibconf.h.prebuilt libpng/pnglibconf.h COPYONLY)
+
+include(FetchContent)
 
 if(WIN32 AND NOT MINGW)
 	if (NOT WINDOWS_32_BIT)
@@ -20,10 +50,6 @@ if(WIN32 AND NOT MINGW)
 		configure_file("${CMAKE_CURRENT_LIST_DIR}/DPP/win32/32/bin/libsodium.dll" "${CMAKE_BINARY_DIR}" COPYONLY)
 		configure_file("${CMAKE_CURRENT_LIST_DIR}/DPP/win32/32/bin/opus.dll" "${CMAKE_BINARY_DIR}" COPYONLY)
 	endif()
-endif()
-
-if ((${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" STREQUAL "xMSVC"))
-	set(CMAKE_C_COMPILER "${CMAKE_CXX_COMPILER}" CACHE STRING "Clang-cl C fix")
 endif()
 
 project(sqlite3

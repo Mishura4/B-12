@@ -280,7 +280,7 @@ namespace
 } // namespace
 
 template <>
-void Bot::command<"settings server study">(
+void Bot::command<"server settings study">(
 	const dpp::interaction_create_t& e,
 	const dpp::interaction&          interaction,
 	command_option_view              options
