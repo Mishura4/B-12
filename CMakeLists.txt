@@ -62,7 +62,16 @@ if (UNIX)
     endif()
 endif ()
 
-target_compile_definitions(B12 PUBLIC _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
+target_compile_definitions(
+    B12
+    PUBLIC
+        $<$<BOOL:${WIN32}>:_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING>
+        $<$<CONFIG:Debug>:B12_DEBUG>
+        $<$<CONFIG:Release>:B12_RELEASE>
+
+        $<$<CONFIG:RelWithDebInfo>:B12_RELEASE>
+        $<$<CONFIG:MinSizeRel>:B12_RELEASE>
+)
 
 if(MSVC)
     target_compile_options(B12 PRIVATE /W4)

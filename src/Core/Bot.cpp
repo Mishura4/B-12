@@ -12,7 +12,7 @@ using namespace B12;
 
 Bot* Bot::_s_instance{nullptr};
 
-#ifdef _DEBUG
+#ifdef B12_DEBUG
 constexpr auto CONFIG_FILE = "config_debug.json"sv;
 #else
 constexpr auto CONFIG_FILE = "config.json"sv;
@@ -508,7 +508,7 @@ void Bot::_onReadyEvent(const dpp::ready_t&)
 	{
 		_commandTable =
 			_gatherCommands(std::make_index_sequence<std::tuple_size_v<decltype(COMMAND_TABLE)>>());
-		#ifdef _DEBUG
+		#ifdef B12_DEBUG
 		for (auto& node : _commandTable.sub_commands)
 		{
 			node.name = fmt::format("dev_{}", node.name);
@@ -584,9 +584,8 @@ auto Bot::_findCommand(
 	{
 		dpp::message reply{lang::DEFAULT.PERMISSION_USER_MISSING.format(it->user_permissions)};
 
-		#ifdef _DEBUG
+		#ifndef B12_DEBUG
 		reply.set_flags(dpp::message_flags::m_ephemeral);
-		#else
 		#endif
 		e.reply(reply);
 		return (&(*it));
@@ -601,7 +600,7 @@ void Bot::_onSlashCommandEvent(const dpp::slashcommand_t& e)
 	dpp::command_interaction cmd_data     = interaction.get_command_interaction();
 	const std::string*       command_name = &cmd_data.name;
 
-	#ifdef _DEBUG
+	#ifdef B12_DEBUG
 	if (auto debug_channel_json = _config.find("debug_channel"); debug_channel_json != _config.end())
 	{
 		if (debug_channel_json->is_string())
