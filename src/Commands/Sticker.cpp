@@ -135,7 +135,7 @@ namespace
 	{
 		using enum ImageProcessResult;
 
-		constexpr auto MAX_SIZE = 300;
+		constexpr auto MAX_SIZE = 320;
 		constexpr auto MAX_SIZE_F = static_cast<float>(MAX_SIZE);
 		//auto           file = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 		//auto           info = png_create_info_struct(file);
@@ -155,7 +155,7 @@ namespace
 		auto buffer  = std::make_unique<float[]>(og_size / sizeof(float));
 		if (png_image_finish_read(&image, 0, buffer.get(), 0, nullptr) == 0)
 			return (ERROR);
-		auto     og_cimg = cimg_library::CImg<float>{buffer.get(), image.width, image.height};
+		auto     og_cimg = cimg_library::CImg<float>{buffer.get(), image.width, image.height, 1, 1, true};
 		uint32_t w{MAX_SIZE};
 		uint32_t h{MAX_SIZE};
 
@@ -231,7 +231,7 @@ void Bot::command<"server sticker grab">(
 
 	if (!message)
 	{
-		e.reply(dpp::message("Error: message not found").set_flags(dpp::m_ephemeral));
+		e.reply(dpp::message("Error: message not found (do I have view permissions in this channel?)").set_flags(dpp::m_ephemeral));
 		return;
 	}
 	if (message->stickers.empty())
@@ -240,7 +240,6 @@ void Bot::command<"server sticker grab">(
 		return;
 	}
 	auto         think = AsyncExecutor<dpp::confirmation>(shion::noop);
-	std::mutex   message_mutex;
 	dpp::message ret;
 
 	think(&dpp::interaction_create_t::thinking, &e, false);
@@ -296,7 +295,7 @@ void Bot::command<"server sticker grab">(
 			ret.content.append(
 				fmt::format(
 					"{} Added sticker \"{}\"!",
-					"\u2705",
+					lang::SUCCESS_EMOJI,
 					grabbed_sticker->name
 				)
 			);
