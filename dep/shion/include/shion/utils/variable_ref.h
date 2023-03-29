@@ -48,11 +48,11 @@ namespace shion
 
     template <size_t N>
       requires (N < possible_types::size)
-    constexpr auto get() const noexcept -> typename type_at<N> &
+    constexpr auto get() const noexcept -> type_at<N> &
     {
       assert(type_index == N);
 
-      return (*static_cast<typename type_at<N> *>(ptr));
+      return (*static_cast<type_at<N> *>(ptr));
     }
 
     template <typename T>
@@ -66,11 +66,11 @@ namespace shion
 
     template <size_t N>
       requires (N < possible_types::size)
-    constexpr auto at() const -> typename type_at<N> &
+    constexpr auto at() const -> type_at<N> &
     {
       if (type_index != N)
         throw std::bad_variant_access();
-      return (*static_cast<typename type_at<N> *>(ptr));
+      return (*static_cast<type_at<N> *>(ptr));
     }
 
     template <typename T>
@@ -84,11 +84,11 @@ namespace shion
 
     template <size_t N>
       requires (N < possible_types::size)
-    constexpr auto try_get() const noexcept -> typename type_at<N> *
+    constexpr auto try_get() const noexcept -> type_at<N> *
     {
       if (type_index != N)
         return (nullptr);
-      return (static_cast<typename type_at<N> *>(ptr));
+      return (static_cast<type_at<N> *>(ptr));
     }
 
     template <typename T>

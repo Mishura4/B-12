@@ -94,6 +94,8 @@ namespace shion::io
 
       void write(LogLevel level, std::string_view msg)
       {
+	if (!target.good())
+	  return;
         if (prefix_generator)
           target << prefix_generator(level, msg);
         target << msg;
@@ -120,6 +122,8 @@ namespace shion::io
 
       void write(LogLevel level, std::string_view msg)
       {
+	if (!target.good())
+	  return;
         if (prefix_generator)
           target << prefix_generator(level, msg);
         target << msg;

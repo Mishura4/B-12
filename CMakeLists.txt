@@ -8,8 +8,7 @@ FUNCTION(PREPEND var prefix)
    SET(${var} "${listVar}" PARENT_SCOPE)
 ENDFUNCTION(PREPEND)
 
-set(FMT_INSTALL ON CACHE BOOL "Fmt installation" FORCE)
-set(DPP_INSTALL ON CACHE BOOL "Dpp installation" FORCE)
+set(BUILD_SHARED_LIBRARIES OFF)
 
 project(B12
         LANGUAGES CXX)
@@ -54,6 +53,14 @@ target_link_libraries(B12 PUBLIC magic_enum)
 target_link_libraries(B12 PUBLIC nonstd::expected-lite)
 target_link_libraries(B12 PUBLIC zlibstatic)
 target_link_libraries(B12 PUBLIC png_static)
+
+if (UNIX)
+    find_package(X11 REQUIRED)
+    target_link_libraries(B12 PRIVATE ${X11_LIBRARIES})
+    if (CMAKE_COMPILER_IS_GNUXX)
+        target_link_libraries(B12 PUBLIC -static-libgcc -static-libstdc++)
+    endif()
+endif ()
 
 target_compile_definitions(B12 PUBLIC _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
 

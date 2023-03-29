@@ -1,5 +1,7 @@
 #include "Core/Bot.h"
 
+#include <cmath>
+
 #include "Command.h"
 
 #include <nonstd/expected.hpp>
@@ -138,10 +140,10 @@ namespace
 
 		constexpr auto MAX_SIZE = 300;
 		constexpr auto MAX_SIZE_F = static_cast<float>(MAX_SIZE);
-		auto           file = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
-		auto           info = png_create_info_struct(file);
+		//auto           file = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+		//auto           info = png_create_info_struct(file);
 
-		setjmp(png_jmpbuf(file));
+		//setjmp(png_jmpbuf(file));
 		png_image image{};
 
 		image.version = PNG_IMAGE_VERSION;
@@ -175,8 +177,8 @@ namespace
 				wf = (hf / wf) * MAX_SIZE_F;
 				hf = MAX_SIZE_F;
 			}
-			w = static_cast<uint32_t>(std::floorf(wf));
-			h = static_cast<uint32_t>(std::floorf(hf));
+			w = static_cast<uint32_t>(floorf(wf));
+			h = static_cast<uint32_t>(floorf(hf));
 		}
 		image.width  = w;
 		image.height = h;

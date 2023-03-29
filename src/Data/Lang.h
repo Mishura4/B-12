@@ -241,7 +241,7 @@ const -> decltype(ctx.out())
 	return (fmt::format_to(
 		ctx.out(),
 		"{}",
-		lang::_::populatePermissionString(permission, std::make_index_sequence<sizeof(uint64) * 8>())
+		B12::lang::_::populatePermissionString(permission, std::make_index_sequence<sizeof(uint64) * 8>())
 	));
 }
 

@@ -32,6 +32,18 @@ namespace B12
 		{
 			using exception::exception;
 			using exception::operator=;
+
+			const char *msg{nullptr};
+
+			FatalException(const char *msg_) :
+				msg(msg_)
+			{
+			}
+
+			const char *what() const noexcept override
+			{
+				return (msg);
+			}
 		};
 
 		explicit Bot(const char* discordToken);

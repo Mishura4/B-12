@@ -79,21 +79,29 @@ Bot::Bot(const char* discord_token)
 		throw BotSingletonException();
 	_s_instance = this;
 	_readConfig(CONFIG_FILE);
-	try
+	try // we do this with try/catch as opposed to the iostream::fail API so we can have the error message
 	{
-		_logFile.exceptions(std::ifstream::failbit);
+		_logFile.exceptions(std::ios::failbit);
 		_logFile.open("latest.log", std::ios::out | std::ios::trunc);
-		_logFile.exceptions(0);
-		_debugLogFile.exceptions(std::ifstream::failbit);
+		_logFile.exceptions(std::ios::iostate{});
+		_debugLogFile.exceptions(std::ios::failbit);
 		_debugLogFile.open("debug.log", std::ios::out | std::ios::trunc);
-		_debugLogFile.exceptions(0);
-		_bot          = std::make_unique<dpp::cluster>(_fetchToken(discord_token));
-		_bot->intents = dpp::intents::i_message_content | dpp::intents::i_guild_messages;
-		_bot->on_log(dpp_log);
+		_debugLogFile.exceptions(std::ios::iostate{});
 	}
 	catch (const std::exception& e)
 	{
 		log(LogLevel::ERROR, "could not open log file: {}", e.what());
+	}
+	try
+	{
+		_bot					= std::make_unique<dpp::cluster>(_fetchToken(discord_token));
+		_bot->intents = dpp::intents::i_message_content | dpp::intents::i_guild_messages;
+		_bot->on_log(dpp_log);
+	}
+	catch (const std::exception &e)
+	{
+		log(LogLevel::ERROR, "could not start bot: {}", e.what());
+		throw;
 	}
 }
 

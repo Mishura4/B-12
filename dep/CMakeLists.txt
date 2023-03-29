@@ -76,6 +76,12 @@ target_include_directories(sqlite3
         ${CMAKE_CURRENT_LIST_DIR}/sqlite/
 )
 
+if (UNIX)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+    target_link_libraries(sqlite3 PRIVATE Threads::Threads ${CMAKE_DL_LIBS} X11)
+endif ()
+
 install(TARGETS sqlite3
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         LIBRARY DESTINATION ${CMAKE_INSTALL_BINDIR}
