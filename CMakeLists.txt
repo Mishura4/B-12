@@ -82,8 +82,7 @@ if(MSVC)
         set(DPP_DEP_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/dep/DPP/win32/32")
     endif()
 
-    add_custom_command(TARGET B12 POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    set(B12_DEPENDENCIES
 	        "${DPP_DEP_DIRECTORY}/libcrypto-1_1-x64.dll"
 	        "${DPP_DEP_DIRECTORY}/libsodium.dll"
 	        "${DPP_DEP_DIRECTORY}/libssl-1_1-x64.dll"
@@ -94,6 +93,11 @@ if(MSVC)
             $<TARGET_FILE:sqlite3>
             $<TARGET_PDB_FILE:dpp>
             $<TARGET_PDB_FILE:fmt>
+	        $<TARGET_FILE_DIR:B12>)
+
+    add_custom_target(COPY_DEPENDENCIES ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+	        ${B12_DEPENDENCIES}
 	        $<TARGET_FILE_DIR:B12>
     )
 else()

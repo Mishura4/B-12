@@ -117,13 +117,10 @@ namespace
 	{
 		if (std::optional format = find_sticker_format(sticker.format_type); format.has_value())
 		{
-			msg.add_file(
-				fmt::format("{}.{}", sticker.name, *format),
-				fmt::format("image/{}", *format)
-			);
+			msg.add_file(fmt::format("{}.{}", sticker.name, *format), content, fmt::format("image/{}", *format));
 		}
 		else
-			msg.add_file(sticker.name, "application/octet-stream");
+			msg.add_file(sticker.name, content);
 		msg.set_file_content(content);
 	}
 
@@ -267,7 +264,9 @@ void Bot::command<"server sticker grab">(
 			attachment_add(ret, s, *content);
 			continue;
 		}
+
 		dpp::sticker to_add;
+		auto resize_result = image_process(content);
 
 		to_add.filecontent	= std::move(*content);
 		to_add.guild_id     = interaction.guild_id;
@@ -296,7 +295,8 @@ void Bot::command<"server sticker grab">(
 		{
 			ret.content.append(
 				fmt::format(
-					"Added sticker \"{}\"!",
+					"{} Added sticker \"{}\"!",
+					"\u2705",
 					grabbed_sticker->name
 				)
 			);
