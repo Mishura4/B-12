@@ -309,7 +309,7 @@ void Bot::command<"server sticker grab">(
 					add_result.error().message
 				)
 			);
-			attachment_add(ret, s, *content);
+			attachment_add(ret, s, to_add.filecontent);
 		}
 		else
 		{
