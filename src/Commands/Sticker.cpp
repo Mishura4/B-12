@@ -269,26 +269,7 @@ void Bot::command<"server sticker grab">(
 		}
 		dpp::sticker to_add;
 
-		auto resize_result = image_process(content);
-
-		/*{
-			std::ofstream b("test.png", std::ios::out | std::ios::trunc | std::ios::binary);
-
-			b.write(content->data(), content->size());
-		}
-
-		std::string content2;
-		{
-			std::ifstream b("test.png", std::ios::in | std::ios::binary);
-
-			b.seekg(0, std::ios::end);
-			auto size = b.tellg();
-			b.seekg(0, std::ios::beg);
-			content2.resize(size);
-			b.read(content2.data(), size);
-		}*/
-
-		to_add.filecontent  = std::move(*content);
+		to_add.filecontent	= std::move(*content);
 		to_add.guild_id     = interaction.guild_id;
 		to_add.sticker_user = bot().me;
 		to_add.name         = grabbed_sticker->name;
@@ -315,14 +296,13 @@ void Bot::command<"server sticker grab">(
 		{
 			ret.content.append(
 				fmt::format(
-					"Added sticker \"{}\"!{}",
-					grabbed_sticker->name,
-					(resize_result == ImageProcessResult::RESIZED
-						 ? " (note : the image was resized due to being too large)"
-						 : "")
+					"Added sticker \"{}\"!",
+					grabbed_sticker->name
 				)
 			);
 		}
+		if (resize_result == ImageProcessResult::RESIZED)
+			ret.content.append(" (note : the image was resized due to being too large)");
 	}
 	think.wait();
 	e.edit_original_response(ret);

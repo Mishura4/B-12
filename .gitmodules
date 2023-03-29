@@ -1,6 +1,3 @@
-[submodule "dep/DPP"]
-	path = dep/DPP
-	url = https://github.com/brainboxdotcc/DPP.git
 [submodule "dep/boost_pfr"]
 	path = dep/boost_pfr
 	url = https://github.com/boostorg/pfr.git
@@ -22,3 +19,6 @@
 [submodule "dep/zlib"]
 	path = dep/zlib
 	url = https://github.com/madler/zlib.git
+[submodule "dep/DPP-PRs"]
+	path = dep/DPP
+	url = https://github.com/Mishura4/DPP-PRs.git
