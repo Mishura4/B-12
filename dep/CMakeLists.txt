@@ -3,32 +3,15 @@ if ((${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" S
 	set(CMAKE_C_COMPILER "${CMAKE_CXX_COMPILER}" CACHE STRING "Clang-cl C fix")
 endif()
 
+find_package(ZLIB REQUIRED)
+
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/fmt)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/boost_pfr)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/magic_enum)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/DPP)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/expected-lite)
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/zlib "${CMAKE_CURRENT_BINARY_DIR}/zlib_build")
-
-set(PNG_BUILD_ZLIB ${CMAKE_CURRENT_LIST_DIR}/zlib)
-set(ZLIB_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_LIST_DIR}/zlib "${CMAKE_CURRENT_BINARY_DIR}/zlib_build")
-set(ZLIB_LIBRARIES zlibstatic)
-set(SKIP_INSTALL_EXPORT on)
-
-install(TARGETS zlibstatic
-EXPORT zlibstatic
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/libpng)
-
-target_include_directories(zlibstatic INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/zlib_build")
-target_include_directories(zlibstatic INTERFACE ${CMAKE_CURRENT_LIST_DIR}/zlib)
-target_include_directories(zlib INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/zlib_build")
-target_include_directories(zlib INTERFACE ${CMAKE_CURRENT_LIST_DIR}/zlib)
 
 configure_file(libpng/scripts/pnglibconf.h.prebuilt libpng/pnglibconf.h COPYONLY)
 

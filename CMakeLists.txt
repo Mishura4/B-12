@@ -51,7 +51,6 @@ target_link_libraries(B12 PUBLIC dpp)
 target_link_libraries(B12 PUBLIC boost_pfr)
 target_link_libraries(B12 PUBLIC magic_enum)
 target_link_libraries(B12 PUBLIC nonstd::expected-lite)
-target_link_libraries(B12 PUBLIC zlibstatic)
 target_link_libraries(B12 PUBLIC png_static)
 
 if (UNIX)
