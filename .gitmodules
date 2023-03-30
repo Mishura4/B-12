@@ -16,9 +16,6 @@
 [submodule "dep/libpng"]
 	path = dep/libpng
 	url = https://github.com/glennrp/libpng
-[submodule "dep/zlib"]
-	path = dep/zlib
-	url = https://github.com/madler/zlib.git
 [submodule "dep/DPP-PRs"]
 	path = dep/DPP
 	url = https://github.com/Mishura4/DPP-PRs.git
