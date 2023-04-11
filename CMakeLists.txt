@@ -90,8 +90,10 @@ if(MSVC)
             $<TARGET_FILE:dpp>
             $<TARGET_FILE:fmt>
             $<TARGET_FILE:sqlite3>
-            $<TARGET_PDB_FILE:dpp>
-            $<TARGET_PDB_FILE:fmt>
+            $<$<CONFIG:Debug>:$<$<TARGET_PDB_FILE:dpp>>>
+            $<$<CONFIG:RelWithDebInfo>:$<$<TARGET_PDB_FILE:dpp>>>
+            $<$<CONFIG:Debug>:$<$<TARGET_PDB_FILE:fmt>>>
+            $<$<CONFIG:RelWithDebInfo>:$<$<TARGET_PDB_FILE:fmt>>>
 	        $<TARGET_FILE_DIR:B12>)
 
     add_custom_target(COPY_DEPENDENCIES ALL
