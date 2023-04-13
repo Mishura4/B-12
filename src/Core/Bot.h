@@ -33,12 +33,10 @@ namespace B12
 			using exception::exception;
 			using exception::operator=;
 
-			const char *msg{nullptr};
+			const char* msg{nullptr};
 
-			FatalException(const char *msg_) :
-				msg(msg_)
-			{
-			}
+			FatalException(const char* msg_) :
+				msg(msg_) { }
 
 			const char *what() const noexcept override
 			{
@@ -78,7 +76,7 @@ namespace B12
 		static observer_ptr<Guild> fetchGuild(dpp::snowflake id);
 
 		template <string_literal CommandName>
-		static void command(
+		static CommandResponse command(
 			const dpp::interaction_create_t&          e,
 			const dpp::interaction&                   interaction,
 			std::span<const dpp::command_data_option> options
@@ -124,7 +122,7 @@ namespace B12
 			std::vector<CommandParameter> parameters{};
 			uint64_t                      user_permissions{COMMAND_DEFAULT_USER_PERMISSIONS};
 			uint64_t                      bot_permissions{COMMAND_DEFAULT_BOT_PERMISSIONS};
-			command_handler               handler{nullptr};
+			command_fun                   handler{nullptr};
 
 			bool operator==(const CommandNode& rhs) const noexcept
 			{

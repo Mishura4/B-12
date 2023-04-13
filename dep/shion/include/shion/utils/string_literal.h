@@ -11,6 +11,14 @@ namespace shion
   {
     constexpr inline static size_t size{N};
 
+  	template <typename T>
+  	requires (std::same_as<const CharT *, T>)
+  	consteval string_literal(T str)
+  	{
+  		std::ranges::copy_n(str, N, data);
+  		data[N] = 0;
+  	}
+
     template <size_t... Is>
     constexpr string_literal(const CharT *str, std::index_sequence<Is...>) :
       data{str[Is]...}

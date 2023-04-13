@@ -13,3 +13,8 @@ void B12::log(LogLevel level, std::string_view str)
 {
 	Bot::log(level, str);
 }
+
+auto B12::fetchGuild(dpp::snowflake id) -> shion::utils::observer_ptr<Guild>
+{
+	return (Bot::fetchGuild(id));
+}

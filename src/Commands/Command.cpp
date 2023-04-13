@@ -7,6 +7,8 @@
 
 #include <regex>
 
+#include "CommandHandler.h"
+
 using namespace B12;
 
 // proof of concept for webhook messages
@@ -36,49 +38,39 @@ using namespace B12;
   );*/
 
 template <>
-void Bot::command<"meow">(
-	const dpp::interaction_create_t& e,
-	const dpp::interaction&          /*interaction*/,
-	command_option_view              /*options*/
+CommandResponse CommandHandler::command<"meow">(
+	command_option_view /*options*/
+
 )
 {
-	constexpr char INTRO_URL[] =
-		"https://cdn.discordapp.com/attachments/1066393377236594699/1066779084845220020/b-12.mp4";
-	dpp::message ret{INTRO_URL, dpp::message_type::mt_reply};
+	static constexpr auto INTRO_URL =
+		"https://cdn.discordapp.com/attachments/1066393377236594699/1066779084845220020/b-12.mp4"sv;
 
-	e.reply(ret);
+	return {CommandResponse::Success{}, std::string{INTRO_URL}};
 }
 
 template <>
-void Bot::command<"bigmoji">(
-	const dpp::interaction_create_t& e,
-	const dpp::interaction&          /*interaction*/,
-	command_option_view              options
+CommandResponse CommandHandler::command<"bigmoji">(
+	command_option_view options
 )
 {
 	using namespace std::string_view_literals;
 
 	if (options.empty() || !std::holds_alternative<std::string>(options[0].value))
-	{
-		e.reply(dpp::message("Error: wrong parameter type").set_flags(dpp::m_ephemeral));
-		return;
-	}
+		return {CommandResponse::UsageError{}, {"Error: wrong parameter type"}};
 	const std::string& input = std::get<std::string>(options[0].value);
 	std::regex pattern{"^(?:\\s*)<(a?):([a-zA-Z0-9_]+):([0-9]+)>(?:\\s*)$"};
 	std::string match;
 	std::match_results<std::string::const_iterator> results{};
 	if (!std::regex_match(input, results, pattern) || results.size() < 4)
-	{
-		e.reply(
-			dpp::message("Please give a custom emoji as the parameter.").set_flags(dpp::m_ephemeral)
-		);
-		return;
-	}
-	auto id  = results[3];
-	auto URL = fmt::format(
-		"https://cdn.discordapp.com/emojis/{}{}?size=256&quality=lossless",
-		std::string_view{id.first, id.second},
-		(results[1].length() ? ".gif"sv : ".webp"sv)
-	);
-	e.reply(URL);
+		return {CommandResponse::UsageError{}, {"Please give a custom emoji as the parameter."}};
+	auto id = results[3];
+	return CommandResponse{
+		CommandResponse::Success{},
+		{
+			"https://cdn.discordapp.com/emojis/{}{}?size=256&quality=lossless",
+			std::string_view{id.first, id.second},
+			(results[1].length() ? ".gif"sv : ".webp"sv)
+		}
+	};
 }

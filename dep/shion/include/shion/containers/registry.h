@@ -5,6 +5,7 @@
 #include "../traits/type_list.h"
 #include "../traits/value_list.h"
 #include "../utils/variable_ref.h"
+#include "../utils/visitor.h"
 
 #include <any>
 #include <typeinfo>
@@ -179,7 +180,8 @@ namespace shion
 
   namespace _
   {
-
+  	using shion::utils::visitor;
+  	
     template <typename T>
     struct dynamic_registry_storage
     {
@@ -289,15 +291,6 @@ namespace shion
       using value_type = typename dynamic_registry_value_type_s<value_type_list>::type;
       using interface_type = typename dynamic_registry_value_type_s<value_type_list>::ref_type;
     };
-
-    template <typename... Args>
-    struct visitor : Args...
-    {
-      using Args::operator()...;
-    };
-
-    template <typename... Args>
-    visitor(Args...) -> visitor<Args...>;
 
     template <typename R, typename T>
     constexpr auto _visitor = [](T &arg) -> R { return (*arg.ptr); };

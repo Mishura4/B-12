@@ -7,8 +7,12 @@
 #include <type_traits>
 #include <utility>
 
+#include "CommandResponse.h"
+
 namespace B12
 {
+	class CommandHandler;
+	
 	template <typename T>
 	concept dpp_command_option_type = std::same_as<T, dpp::command_option_type>;
 
@@ -70,19 +74,21 @@ namespace B12
 	// minimal permission for a user to use a command for the purpose of command default constructors : administrator
 	constexpr static size_t COMMAND_DEFAULT_USER_PERMISSIONS = (1uLL << 31);
 
+	template <typename T, typename Ret, typename... Args>
+	concept invocable_r = std::invocable<T, Args...> &&
+		std::same_as<Ret, std::invoke_result_t<T, Args...>>;
+
 	template <typename T>
-	concept command_handler_type = std::invocable<
+	concept command_handler_type = std::is_null_pointer_v<T> || invocable_r<
 		T,
-		const dpp::interaction_create_t&,
-		const dpp::interaction&,
+		CommandResponse,
+		CommandHandler*,
 		std::span<const dpp::command_data_option>>;
 
 	using command_option_view = std::span<const dpp::command_data_option>;
 
-	using command_handler = void (*)(
-		const dpp::interaction_create_t&,
-		const dpp::interaction&,
-		std::span<const dpp::command_data_option>
+	using command_fun = CommandResponse (CommandHandler::*)(
+		command_option_view
 	);
 
 	template <
@@ -119,4 +125,9 @@ namespace B12
 		uint64_t         user_permissions{dpp::permissions::p_use_application_commands};
 		uint64_t         bot_permissions{dpp::permissions::p_send_messages};
 	};
+
+	inline constexpr auto button_command_prefix = "command:"sv;
+	inline constexpr auto button_action_prefix = "action:"sv;
+	inline constexpr auto button_abort = "abort"sv;
+	
 } // namespace B12

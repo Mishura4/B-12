@@ -1,16 +1,13 @@
 #include "Core/Bot.h"
 
-#include <cmath>
-
 #include "Command.h"
-
-#include <nonstd/expected.hpp>
-
 #include "../Data/Lang.h"
 
-#include "png.h"
-
 #include <CImg.h>
+#include <png.h>
+#include <nonstd/expected.hpp>
+
+#include "CommandHandler.h"
 
 using namespace B12;
 
@@ -38,10 +35,10 @@ namespace
 		return {std::nullopt};
 	};
 
-	auto message_get(
+	std::optional<dpp::message> message_get(
 		dpp::snowflake message_id,
 		dpp::snowflake channel_id
-	) -> std::optional<dpp::message>
+	)
 	{
 		std::optional<dpp::message> message{std::nullopt};
 
@@ -93,7 +90,7 @@ namespace
 		return (content);
 	}
 
-	auto sticker_add(dpp::sticker& sticker) -> nonstd::expected<dpp::sticker, dpp::error_info>
+	nonstd::expected<dpp::sticker, dpp::error_info> sticker_add(dpp::sticker& sticker)
 	{
 		auto ret      = nonstd::expected<dpp::sticker, dpp::error_info>{};
 		auto on_error = [&](const dpp::error_info& err)
@@ -117,7 +114,11 @@ namespace
 	{
 		if (std::optional format = find_sticker_format(sticker.format_type); format.has_value())
 		{
-			msg.add_file(fmt::format("{}.{}", sticker.name, *format), content, fmt::format("image/{}", *format));
+			msg.add_file(
+				fmt::format("{}.{}", sticker.name, *format),
+				content,
+				fmt::format("image/{}", *format)
+			);
 		}
 		else
 			msg.add_file(sticker.name, content);
@@ -131,11 +132,11 @@ namespace
 		NOOP    = 2
 	};
 
-	auto image_process(std::optional<std::string>& content) -> ImageProcessResult
+	ImageProcessResult image_process(std::optional<std::string>& content)
 	{
 		using enum ImageProcessResult;
 
-		constexpr auto MAX_SIZE = 320;
+		constexpr auto MAX_SIZE   = 320;
 		constexpr auto MAX_SIZE_F = static_cast<float>(MAX_SIZE);
 		//auto           file = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
 		//auto           info = png_create_info_struct(file);
@@ -155,7 +156,7 @@ namespace
 		auto buffer  = std::make_unique<float[]>(og_size / sizeof(float));
 		if (png_image_finish_read(&image, 0, buffer.get(), 0, nullptr) == 0)
 			return (ERROR);
-		auto     og_cimg = cimg_library::CImg<float>{buffer.get(), image.width, image.height, 1, 1, true};
+		auto og_cimg = cimg_library::CImg<float>{buffer.get(), image.width, image.height, 1, 1, true};
 		uint32_t w{MAX_SIZE};
 		uint32_t h{MAX_SIZE};
 
@@ -201,13 +202,11 @@ namespace
 }
 
 template <>
-void Bot::command<"server sticker grab">(
-	const dpp::interaction_create_t& e,
-	const dpp::interaction&          interaction,
-	command_option_view              options
+CommandResponse CommandHandler::command<"server sticker grab">(
+	command_option_view options
 )
 {
-	dpp::snowflake channel_id{interaction.channel_id};
+	dpp::snowflake channel_id{_channel->id};
 	dpp::snowflake message_id{0};
 
 	for (const dpp::command_data_option& opt : options)
@@ -223,53 +222,45 @@ void Bot::command<"server sticker grab">(
 		}
 	}
 	if (!message_id)
-	{
-		e.reply(dpp::message("Error: invalid message ID").set_flags(dpp::m_ephemeral));
-		return;
-	}
+		return {CommandResponse::UsageError{}, {"Error: could not parse message id"}};
 	auto message = message_get(message_id, channel_id);
 
 	if (!message)
-	{
-		e.reply(dpp::message("Error: message not found (do I have view permissions in this channel?)").set_flags(dpp::m_ephemeral));
-		return;
-	}
+		return {
+			CommandResponse::UsageError{},
+			{"Error: message not found (do I have view permissions in this channel?)"}
+		};
 	if (message->stickers.empty())
-	{
-		e.reply(dpp::message("Error: message does not have stickers!").set_flags(dpp::m_ephemeral));
-		return;
-	}
-	auto         think = AsyncExecutor<dpp::confirmation>(shion::noop);
-	dpp::message ret;
+		return {CommandResponse::UsageError{}, {"Error: message does not have stickers!"}};
 
-	think(&dpp::interaction_create_t::thinking, &e, false);
+	CommandResponse ret{CommandResponse::Success{}};
+
+	sendThink(false);
 	for (const dpp::sticker& s : message->stickers)
 	{
 		auto content = sticker_content_get(s);
 		if (!content)
 		{
-			ret.content.append(fmt::format("{} Could not download image data", lang::ERROR_EMOJI));
+			ret.append("{} Could not download image data", lang::ERROR_EMOJI);
 			continue;
 		}
 		auto grabbed_sticker = sticker_get(s.id);
 		if (!grabbed_sticker)
 		{
-			ret.content.append(
-				fmt::format(
-					"{} Could not request sticker details, was it deleted? Adding image as attachment for manual addition.",
-					lang::ERROR_EMOJI
-				)
+			ret.append(
+				"{} Could not request sticker details, was it deleted? Adding image as attachment for manual addition.",
+				lang::ERROR_EMOJI
 			);
-			attachment_add(ret, s, *content);
+			attachment_add(ret.content.message, s, *content);
 			continue;
 		}
 
 		dpp::sticker to_add;
-		auto resize_result = image_process(content);
+		auto         resize_result = image_process(content);
 
-		to_add.filecontent	= std::move(*content);
-		to_add.guild_id     = interaction.guild_id;
-		to_add.sticker_user = bot().me;
+		to_add.filecontent  = std::move(*content);
+		to_add.guild_id     = _guild_id;
+		to_add.sticker_user = _cluster->me;
 		to_add.name         = grabbed_sticker->name;
 		to_add.description  = grabbed_sticker->description;
 		to_add.filename     = to_add.name + ".png";
@@ -280,29 +271,24 @@ void Bot::command<"server sticker grab">(
 		auto add_result = sticker_add(to_add);
 		if (!add_result.has_value())
 		{
-			ret.content.append(
-				fmt::format(
-					"{} Failed to add sticker `{}`: \"{}\"\nAdding image as attachment for manual addition",
-					lang::ERROR_EMOJI,
-					grabbed_sticker->name,
-					add_result.error().message
-				)
+			ret.append(
+				"{} Failed to add sticker `{}`: \"{}\"\nAdding image as attachment for manual addition",
+				lang::ERROR_EMOJI,
+				grabbed_sticker->name,
+				add_result.error().message
 			);
-			attachment_add(ret, s, to_add.filecontent);
+			attachment_add(ret.content.message, s, to_add.filecontent);
 		}
 		else
 		{
-			ret.content.append(
-				fmt::format(
-					"{} Added sticker \"{}\"!",
-					lang::SUCCESS_EMOJI,
-					grabbed_sticker->name
-				)
+			ret.append(
+				"{} Added sticker \"{}\"!",
+				lang::SUCCESS_EMOJI,
+				grabbed_sticker->name
 			);
 		}
 		if (resize_result == ImageProcessResult::RESIZED)
-			ret.content.append(" (note : the image was resized due to being too large)");
+			ret.append(" (note : the image was resized due to being too large)");
 	}
-	think.wait();
-	e.edit_original_response(ret);
+	return (ret);
 }

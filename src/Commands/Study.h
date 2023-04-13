@@ -20,7 +20,7 @@ namespace B12
 		GuildSettingsEntry guildSettingsEntry{};
 	};
 
-	constexpr auto STUDY_COMMAND_BUTTON_ID = "study_toggle";
+	constexpr auto STUDY_COMMAND_BUTTON_ID = "command:study";
 } // namespace B12
 
 #endif

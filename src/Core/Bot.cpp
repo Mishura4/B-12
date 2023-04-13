@@ -79,7 +79,8 @@ Bot::Bot(const char* discord_token)
 		throw BotSingletonException();
 	_s_instance = this;
 	_readConfig(CONFIG_FILE);
-	try // we do this with try/catch as opposed to the iostream::fail API so we can have the error message
+	try
+	// we do this with try/catch as opposed to the iostream::fail API so we can have the error message
 	{
 		_logFile.exceptions(std::ios::failbit);
 		_logFile.open("latest.log", std::ios::out | std::ios::trunc);
@@ -94,11 +95,11 @@ Bot::Bot(const char* discord_token)
 	}
 	try
 	{
-		_bot					= std::make_unique<dpp::cluster>(_fetchToken(discord_token));
+		_bot          = std::make_unique<dpp::cluster>(_fetchToken(discord_token));
 		_bot->intents = dpp::intents::i_message_content | dpp::intents::i_guild_messages;
 		_bot->on_log(dpp_log);
 	}
-	catch (const std::exception &e)
+	catch (const std::exception& e)
 	{
 		log(LogLevel::ERROR, "could not start bot: {}", e.what());
 		throw;
@@ -336,7 +337,7 @@ void Bot::MCPUpdate(dpp::snowflake id)
 }
 
 template <size_t CommandN, size_t N>
-constexpr auto Bot::_gatherParameter() -> Bot::CommandParameter
+constexpr Bot::CommandParameter Bot::_gatherParameter()
 {
 	constexpr auto& entry        = std::get<CommandN>(COMMAND_TABLE);
 	constexpr auto& option_name_ =
@@ -354,8 +355,7 @@ constexpr auto Bot::_gatherParameter() -> Bot::CommandParameter
 template <size_t CommandN, size_t... Is>
 constexpr auto Bot::_gatherParameters(
 	std::index_sequence<Is...>
-)
-	-> std::array<CommandParameter, sizeof...(Is)>
+) -> std::array<CommandParameter, sizeof...(Is)>
 {
 	return {_gatherParameter<CommandN, Is>()...};
 }
@@ -590,7 +590,17 @@ auto Bot::_findCommand(
 		e.reply(reply);
 		return (&(*it));
 	}
-	it->handler(e, interact, std::span<const dpp::command_data_option>{command_options});
+	try
+	{
+		CommandHandler handler{e};
+
+		handler.exec(it->handler, std::span<const dpp::command_data_option>{command_options});
+	}
+	catch (...)
+	{
+		e.reply(fmt::format("{} Internal error", lang::ERROR_EMOJI));
+		throw;
+	}
 	return (&(*it));
 }
 

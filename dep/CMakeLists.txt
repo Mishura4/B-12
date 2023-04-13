@@ -38,7 +38,7 @@ project(sqlite3
 
 add_library(sqlite3 STATIC
         ${CMAKE_CURRENT_LIST_DIR}/sqlite/sqlite3.c
-        ${CMAKE_CURRENT_LIST_DIR}/sqlite/sqlite3.h)
+        ${CMAKE_CURRENT_LIST_DIR}/sqlite/sqlite3.h "shion/include/shion/utils/visitor.h")
 
 set_target_properties(sqlite3 PROPERTIES LINKER_LANGUAGE C)
 

@@ -2,10 +2,14 @@
 
 #include "Core/Bot.h"
 
+#include "Study.h"
 #include "Command.h"
 #include "Data/DataStores.h"
 #include "Data/Lang.h"
-#include "Study.h"
+
+#include "CommandHandler.h"
+
+#include <algorithm>
 
 using namespace B12;
 
@@ -24,38 +28,31 @@ namespace
 }
 
 template <>
-void Bot::command<"study">(
-	const dpp::interaction_create_t& e,
-	const dpp::interaction&          interaction,
-	command_option_view              /*options*/
+CommandResponse CommandHandler::command<"study">(
+	command_option_view /*options*/
+
 )
 {
-	Guild*       guild = Bot::fetchGuild(interaction.guild_id);
-	dpp::message reply;
+	Guild*          guild = Bot::fetchGuild(_guild_id);
+	CommandResponse reply;
 
-	if (interaction.type == dpp::it_component_button)
-		reply.set_flags(dpp::m_ephemeral);
 	if (!guild->studyRole() || !guild->studyChannel())
-	{
-		reply.content = lang::DEFAULT.ERROR_STUDY_BAD_SETTINGS;
-		e.reply(reply);
-		return;
-	}
-	B12::AsyncExecutor<dpp::confirmation> replyExecutor([&](const dpp::confirmation&) {});
-	const dpp::role&                       studyRole = guild->studyRole().value();
-	const dpp::guild_member& issuer = interaction.member;
+		return {CommandResponse::InternalError{}, {lang::DEFAULT.ERROR_STUDY_BAD_SETTINGS}};
+	const dpp::role&         studyRole = guild->studyRole().value();
+	const dpp::guild_member& issuer    = *_member_issuer;
 
-	replyExecutor(&dpp::interaction_create_t::thinking, &e, true);
+	sendThink(true);
 	if (std::ranges::find(issuer.roles, studyRole.id) != issuer.roles.end())
 	{
-		B12::AsyncExecutor<dpp::confirmation> roleExecutor(
+		// user has the study role, remove it
+		AsyncExecutor<dpp::confirmation> roleExecutor(
 			[&](const dpp::confirmation&)
 			{
-				reply.content = lang::DEFAULT.COMMAND_STUDY_REMOVED;
+				reply = {CommandResponse::Success{}, {lang::DEFAULT.COMMAND_STUDY_REMOVED}};
 			},
 			[&](const dpp::error_info& error)
 			{
-				reply = fmt::format("error: {}", error.message);
+				reply = {CommandResponse::APIError{}, error.message};
 			}
 		);
 
@@ -68,19 +65,22 @@ void Bot::command<"study">(
 		);
 
 		roleExecutor.wait();
-		replyExecutor.wait();
-		e.edit_original_response(reply);
+		return (reply);
 	}
 	else
 	{
-		B12::AsyncExecutor<dpp::confirmation> roleExecutor(
+		// user does not have study role, add it
+		AsyncExecutor<dpp::confirmation> roleExecutor(
 			[&](const dpp::confirmation&)
 			{
-				reply.content = lang::DEFAULT.COMMAND_STUDY_ADDED.format(*guild->studyChannel());
+				reply = {
+					CommandResponse::Success{},
+					{lang::DEFAULT.COMMAND_STUDY_ADDED.format(*guild->studyChannel())}
+				};
 			},
 			[&](const dpp::error_info& error)
 			{
-				reply = fmt::format("error: {}", error.message);
+				reply = {CommandResponse::APIError{}, {error.message}};
 			}
 		);
 
@@ -93,65 +93,61 @@ void Bot::command<"study">(
 		);
 
 		roleExecutor.wait();
-		replyExecutor.wait();
-		e.edit_original_response(reply);
-		if (interaction.type == dpp::it_application_command)
+		if (isInteraction())
 		{
-			auto& command = std::get<dpp::command_interaction>(e.command.data);
+			const auto& interaction_data = _getInteraction().event->command.data;
 
-			Bot::bot().message_create(
-				dpp::message{
-					interaction.channel_id,
+			if (std::holds_alternative<dpp::command_interaction>(interaction_data))
+			{
+				const auto& slash_command = std::get<dpp::command_interaction>(interaction_data);
+
+				reply.content.other_messages.emplace_back(
+					_channel->id,
 					fmt::format(
 						"{} was sent to the {} realm. <a:nodyesnod:1078439588021944350>",
 						issuer.get_mention(),
-						command.get_mention()
+						slash_command.get_mention()
 					)
-				}.set_reference(interaction.id)
-			);
+				).set_reference(_getInteraction().event->command.id);
+			}
 		}
+		return (reply);
 	}
 }
 
 namespace
 {
-	dpp::message get_study_info_message(Guild* guild)
+	CommandResponse get_study_info_message(Guild* guild)
 	{
 		const auto& curRole    = guild->studyRole();
 		const auto& curChannel = guild->studyChannel();
 
-		return (dpp::message(
-			fmt::format(
-				"Welcome to the `/study` installation wizard! "
-				"<:catthumbsup:1066427078284681267>\n\nCurrent "
-				"study role is {}\nCurrent study channel is {}\n\nTo change these settings, please use "
-				"`/server study settings` with command parameters.",
-				(curRole ? curRole->get_mention() : "(none)"),
-				(curChannel ? curChannel->get_mention() : "(none)")
+		return {
+			CommandResponse::Success{},
+			dpp::message(
+				fmt::format(
+					"Welcome to the `/study` installation wizard! "
+					"<:catthumbsup:1066427078284681267>\n\nCurrent "
+					"study role is {}\nCurrent study channel is {}\n\nTo change these settings, please use "
+					"`/server study settings` with command parameters.",
+					(curRole ? curRole->get_mention() : "(none)"),
+					(curChannel ? curChannel->get_mention() : "(none)")
+				)
 			)
-		));
+		};
 	}
 
 	struct StudySettingsHelper
 	{
-		Guild*                           guild;
-		const dpp::interaction_create_t* event;
-		std::optional<dpp::role>         newRole{std::nullopt};
-		std::optional<dpp::channel>      newChannel{std::nullopt};
-		std::string                      responseNotes;
+		Guild*                      guild;
+		std::optional<dpp::role>    newRole{std::nullopt};
+		std::optional<dpp::channel> newChannel{std::nullopt};
+		std::vector<dpp::message>   additionalMessages;
+		std::string                 responseNotes;
 
-		void handle(command_option_view options)
-		{
-			event->thinking(false);
-			for (const auto& opt : options)
-			{
-				if (!handle_opt(opt))
-					return;
-			}
-			success();
-		}
+		using set_result = std::tuple<CommandResponse::Data, std::string>;
 
-		void success()
+		dpp::message build_success_message()
 		{
 			std::stringstream ss;
 
@@ -173,15 +169,10 @@ namespace
 			{
 				ss << responseNotes;
 			}
-			if (!guild->saveSettings())
-			{
-				ss << "\n\xE2\x9A\xA0**There was an issue saving the settings, "
-					"they will be lost after next bot restart**\xE2\x9A\xA0";
-			}
-			event->edit_original_response(ss.str());
+			return {ss.str()};
 		}
 
-		bool set_role(dpp::snowflake role_id)
+		set_result set_role(dpp::snowflake role_id)
 		{
 			try
 			{
@@ -192,46 +183,46 @@ namespace
 
 				auto it = role_map.find(role_id);
 				if (it == role_map.end())
-				{
-					event->edit_original_response(lang::DEFAULT.ERROR_ROLE_NOT_FOUND.format(role_id));
-					return (false);
-				}
+					return {
+						CommandResponse::UsageError{},
+						lang::DEFAULT.ERROR_ROLE_NOT_FOUND.format(role_id)
+					};
 				newRole = it->second;
 				guild->studyRole(&newRole.value());
 			}
 			catch (const dpp::rest_exception&)
 			{
-				event->edit_original_response(lang::DEFAULT.ERROR_ROLE_FETCH_FAILED.format(role_id));
-				return (false);
+				return {CommandResponse::APIError{}, lang::DEFAULT.ERROR_ROLE_FETCH_FAILED.format(role_id)};
 			}
-			return (true);
+			return {CommandResponse::Success{}, {}};
 		}
 
-		bool set_channel(dpp::snowflake channel_id)
+		set_result set_channel(dpp::snowflake channel_id)
 		{
 			newChannel = guild->findChannel(channel_id);
 			if (!newChannel)
-			{
-				event->edit_original_response(lang::DEFAULT.ERROR_CHANNEL_NOT_FOUND.format(channel_id));
-				return (false);
-			}
-			dpp::permission myPermissions     = guild->getPermissions(guild->b12User(), *newChannel);
+				return {
+					CommandResponse::APIError{},
+					lang::DEFAULT.ERROR_CHANNEL_NOT_FOUND.format(channel_id)
+				};
+
+			dpp::permission myPermissions     = guild->getPermissions(guild->b12Member(), *newChannel);
 			dpp::permission permissionsNeeded = dpp::p_send_messages | dpp::p_use_application_commands;
 
 			if (!myPermissions.has(permissionsNeeded))
 			{
-				event->edit_original_response(
+				return {
+					CommandResponse::APIError{},
 					lang::DEFAULT.PERMISSION_BOT_MISSING.format(
 						newChannel.value(),
 						permissionsNeeded ^ (myPermissions & permissionsNeeded)
 					)
-				);
-				return (false);
+				};
 			}
 			return (post_study_message());
 		}
 
-		bool post_study_message()
+		set_result post_study_message()
 		{
 			dpp::message studyMessage{lang::DEFAULT.STUDY_CHANNEL_WELCOME};
 			auto         messageCallback = [&](const dpp::message& m)
@@ -250,52 +241,67 @@ namespace
 			executor(&dpp::cluster::message_create, &Bot::bot(), studyMessage);
 			executor.wait();
 			if (!studyMessage.sent)
-			{
-				event->edit_original_response({lang::DEFAULT.ERROR_GENERIC_COMMAND_FAILURE});
-				return (false);
-			}
-			return (true);
+				return {CommandResponse::InternalError{}, lang::DEFAULT.ERROR_GENERIC_COMMAND_FAILURE};
+			return {CommandResponse::Success{}, {}};
 		}
 
-		bool handle_opt(const dpp::command_data_option& opt)
+		set_result handle_opt(const dpp::command_data_option& opt)
 		{
 			if (std::holds_alternative<dpp::snowflake>(opt.value))
 			{
-				dpp::snowflake id = std::get<dpp::snowflake>(opt.value);
+				auto id = std::get<dpp::snowflake>(opt.value);
 
 				if (opt.type == dpp::co_role)
 				{
-					if (!set_role(id))
-						return (false);
+					if (set_result result = set_role(id);
+						!std::holds_alternative<CommandResponse::Success>(std::get<0>(result)))
+						return (result);
 				}
 				else if (opt.type == dpp::co_channel)
 				{
-					if (!set_channel(id))
-						return (false);
+					if (set_result result = set_channel(id);
+						!std::holds_alternative<CommandResponse::Success>(std::get<0>(result)))
+						return (result);
 				}
 			}
-			return (true);
+			return {CommandResponse::Success{}, {}};
 		}
 	};
 } // namespace
 
 template <>
-void Bot::command<"server settings study">(
-	const dpp::interaction_create_t& e,
-	const dpp::interaction&          interaction,
-	command_option_view              options
+CommandResponse CommandHandler::command<"server settings study">(
+	command_option_view options
 )
 {
 	if (options.empty())
 	{
-		Guild* guild = Bot::fetchGuild(interaction.guild_id);
+		Guild* guild = Bot::fetchGuild(_guild_id);
 
-		e.reply(get_study_info_message(guild));
-		return;
+		return (get_study_info_message(guild));
 	}
-	StudySettingsHelper helper{.guild = Bot::fetchGuild(interaction.guild_id), .event = &e};
+	StudySettingsHelper       helper{.guild = Bot::fetchGuild(_guild_id)};
+	std::vector<dpp::message> additional_messages;
 
-	helper.handle(options);
+	for (const auto& opt : options)
+	{
+		if (auto result = helper.handle_opt(opt);
+			!std::holds_alternative<CommandResponse::Success>(std::get<0>(result)))
+			return {std::get<0>(result), {std::get<1>(result)}};
+	}
+	std::vector<std::string> warnings;
+
+	if (true || !helper.guild->saveSettings())
+	{
+		warnings.emplace_back(
+			"\n\xE2\x9A\xA0**There was an issue saving the settings, "
+			"they will be lost after next bot restart**\xE2\x9A\xA0"
+		);
+	}
+	return {
+		CommandResponse::Success{},
+		{helper.build_success_message(), warnings, additional_messages}
+	};
 }
 
 namespace

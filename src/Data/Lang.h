@@ -5,6 +5,10 @@
 
 #include <fmt/format.h>
 #include <shion/containers/registry.h>
+#include <shion/utils/string_literal.h>
+#include <shion/types.h>
+
+using namespace shion::literals;
 
 template <>
 struct fmt::formatter<dpp::role>

@@ -3,12 +3,16 @@ target_precompile_headers(B12 PRIVATE ${CMAKE_CURRENT_LIST_DIR}/B12.h)
 set(COMMAND_SOURCES
     Command.cpp
     Command.h
+    CommandResponse.h
+    CommandHandler.h
+    CommandHandler.cpp
     CommandTable.h
     MultiCommandProcess.cpp
     MultiCommandProcess.h
     Sticker.cpp
     Study.cpp
     Study.h
+    Ban.cpp
 )
 
 set(CORE_SOURCES
