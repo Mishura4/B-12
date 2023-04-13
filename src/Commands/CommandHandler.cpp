@@ -104,7 +104,7 @@ void CommandHandler::_process(CommandResponse& response)
 			{
 				response = {
 					CommandResponse::InternalError{},
-					{"Error: unsupported dialog outside of a guild"}
+					{{"Error: unsupported dialog outside of a guild"}}
 				};
 			}
 			else

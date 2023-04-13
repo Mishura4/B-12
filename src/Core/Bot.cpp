@@ -464,9 +464,9 @@ void Bot::_populateCommandOptions(T& cmd, const CommandNode& node) const
 	}
 }
 
-void Bot::_registerGuild(dpp::snowflake id)
+void Bot::_registerGuild(dpp::cluster *cluster, dpp::snowflake id)
 {
-	for (const auto& existing_cmd : _bot->guild_commands_get_sync(id))
+	for (const auto& existing_cmd : cluster->guild_commands_get_sync(id))
 	{
 		auto it = std::ranges::find(
 			_commandTable.sub_commands,
@@ -477,7 +477,7 @@ void Bot::_registerGuild(dpp::snowflake id)
 			}
 		);
 		if (it == _commandTable.sub_commands.end())
-			_bot->guild_command_delete(existing_cmd.second.id, id);
+			cluster->guild_command_delete(existing_cmd.second.id, id);
 	}
 	for (auto& node : _commandTable.sub_commands)
 	{
@@ -501,8 +501,34 @@ void Bot::_registerGuild(dpp::snowflake id)
 	}
 }
 
-void Bot::_onReadyEvent(const dpp::ready_t&)
+void Bot::_onReadyEvent(const dpp::ready_t &event)
 {
+	static const std::array activities = std::to_array<dpp::activity>(
+		{
+			{
+				dpp::at_streaming,
+				"\"; DROP DATABASE database",
+				"test",
+				"https://www.youtube.com/watch?v=qwxZU0VkWII&pp=ygUEbWVvdw"
+			},
+			{
+				dpp::at_streaming,
+				"Segmentation fault",
+				"test",
+				"https://www.youtube.com/watch?v=qwxZU0VkWII&pp=ygUEbWVvdw"
+			},
+			{
+				dpp::at_streaming,
+				"abort() speedrun Any%",
+				"test",
+				"https://www.youtube.com/watch?v=qwxZU0VkWII&pp=ygUEbWVvdw"
+			}
+		}
+	);
+	event.from->creator->set_presence(
+		{dpp::ps_online, activities[static_cast<size_t>(std::rand()) % (activities.size())]}
+	);
+	
 	// TODO: cleanup
 	if (dpp::run_once<struct registerBotCommands>())
 	{
@@ -524,7 +550,7 @@ void Bot::_onReadyEvent(const dpp::ready_t&)
 					auto&  as_str = i.get_ref<const std::string&>();
 					uint64 id     = stoull(as_str); // TODO: ERROR HANDLING
 
-					_registerGuild(id);
+					_registerGuild(event.from->creator, id);
 				}
 			}
 		}

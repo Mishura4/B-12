@@ -159,7 +159,7 @@ namespace B12
 		bool _initDatabases();
 		bool _initDatastores();
 
-		void _registerGuild(dpp::snowflake id);
+		void _registerGuild(dpp::cluster *cluster, dpp::snowflake id);
 
 		template <typename T>
 		using Logger = shion::io::Logger<T>;

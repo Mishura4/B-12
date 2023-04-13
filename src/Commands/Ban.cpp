@@ -47,7 +47,7 @@ namespace
 			ban_executor(&dpp::cluster::guild_ban_add, event.from->creator, event.command.guild_id, user_id, 0);
 			ban_executor.wait();
 			if (!error.empty())
-				return CommandResponse{CommandResponse::APIError{}, {"Error: ", error}};
+				return CommandResponse{CommandResponse::APIError{}, {fmt::format("Error: ", error)}};
 			
 			dpp::message edit{event.command.msg};
 			auto components = std::vector<dpp::component>{};
@@ -61,7 +61,7 @@ namespace
 			);
 			return {
 				CommandResponse::SuccessEdit{},
-				edit,
+				{edit},
 				Guild::makeForgetButtonsCallback(event.command.guild_id, components)
 			};
 		}
@@ -108,7 +108,7 @@ CommandResponse CommandHandler::command<"ban">(
 				break;
 		}
 		if (!handled)
-			return {CommandResponse::InternalError{}, {"Unknown or invalid option {} of type {}"sv, opt.name, magic_enum::enum_name(opt.type)}};
+			return {CommandResponse::InternalError{}, {fmt::format("Unknown or invalid option {} of type {}"sv, opt.name, magic_enum::enum_name(opt.type))}};
 	}
 	
 	sendThink(false);
@@ -127,20 +127,20 @@ CommandResponse CommandHandler::command<"ban">(
 		{
 			return {
 				CommandResponse::Success{},
-				{"User <@{}> is currently banned. ({})",
+				{fmt::format("User <@{}> is currently banned. ({})",
 				user_id,
-				ban->reason.empty() ? "no reason specified"sv : ban->reason}
+				ban->reason.empty() ? "no reason specified"sv : ban->reason)}
 			};
 		}
-		return {CommandResponse::Success{}, {"User <@{}> is not currently banned.", user_id}};
+		return {CommandResponse::Success{}, {fmt::format("User <@{}> is not currently banned.", user_id)}};
 	}
 	if (ban.has_value())
-		return {CommandResponse::Success{}, {"User <@{}> is already banned. ({})", user_id, ban->reason.empty() ? "no reason specified"sv : ban->reason}};
+		return {CommandResponse::Success{}, {fmt::format("User <@{}> is already banned. ({})", user_id, ban->reason.empty() ? "no reason specified"sv : ban->reason)}};
 
 	Guild *guild = Bot::fetchGuild(_guild_id);
 
 	if (!guild)
-		return {CommandResponse::InternalError{}, {"Unknown server"}};
+		return {CommandResponse::InternalError{}, {{"Unknown server"}}};
 	
 	dpp::message reply{
 		fmt::format(
@@ -161,5 +161,5 @@ CommandResponse CommandHandler::command<"ban">(
 			guild->createButtonAction(confirm, dpp::p_ban_members, std::chrono::system_clock::now() + 30s).set_emoji("\u2611")
 		)
 	);*/
-	return {CommandResponse::Confirm{confirm, 10s}, reply};
+	return {CommandResponse::Confirm{confirm, 10s}, {reply}};
 }

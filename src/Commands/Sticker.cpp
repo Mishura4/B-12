@@ -222,16 +222,16 @@ CommandResponse CommandHandler::command<"server sticker grab">(
 		}
 	}
 	if (!message_id)
-		return {CommandResponse::UsageError{}, {"Error: could not parse message id"}};
+		return {CommandResponse::UsageError{}, {{"Error: could not parse message id"}}};
 	auto message = message_get(message_id, channel_id);
 
 	if (!message)
 		return {
 			CommandResponse::UsageError{},
-			{"Error: message not found (do I have view permissions in this channel?)"}
+			{{"Error: message not found (do I have view permissions in this channel?)"}}
 		};
 	if (message->stickers.empty())
-		return {CommandResponse::UsageError{}, {"Error: message does not have stickers!"}};
+		return {CommandResponse::UsageError{}, {{"Error: message does not have stickers!"}}};
 
 	CommandResponse ret{CommandResponse::Success{}};
 

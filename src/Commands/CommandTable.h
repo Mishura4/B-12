@@ -59,7 +59,7 @@ constexpr auto make_option(std::string_view description, bool required, CommandT
 
 constexpr inline auto noop_command = [](auto...) -> CommandResponse
 {
-	return {CommandResponse::InternalError{}, {"Invalid command"}};
+	return {CommandResponse::InternalError{}, {{"Invalid command"}}};
 };
 
 inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(

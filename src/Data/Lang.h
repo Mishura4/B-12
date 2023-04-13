@@ -112,6 +112,11 @@ namespace B12
 			{
 				return std::basic_string<char>{_fmt};
 			}
+
+			operator dpp::message() const
+			{
+				return {std::basic_string<char>{_fmt}};
+			}
 		};
 
 		struct lang

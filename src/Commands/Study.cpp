@@ -52,7 +52,7 @@ CommandResponse CommandHandler::command<"study">(
 			},
 			[&](const dpp::error_info& error)
 			{
-				reply = {CommandResponse::APIError{}, error.message};
+				reply = {CommandResponse::APIError{}, {error.message}};
 			}
 		);
 
@@ -124,16 +124,18 @@ namespace
 
 		return {
 			CommandResponse::Success{},
-			dpp::message(
-				fmt::format(
-					"Welcome to the `/study` installation wizard! "
-					"<:catthumbsup:1066427078284681267>\n\nCurrent "
-					"study role is {}\nCurrent study channel is {}\n\nTo change these settings, please use "
-					"`/server study settings` with command parameters.",
-					(curRole ? curRole->get_mention() : "(none)"),
-					(curChannel ? curChannel->get_mention() : "(none)")
-				)
-			)
+			{
+				{
+					fmt::format(
+						"Welcome to the `/study` installation wizard! "
+						"<:catthumbsup:1066427078284681267>\n\nCurrent "
+						"study role is {}\nCurrent study channel is {}\n\nTo change these settings, please use "
+						"`/server study settings` with command parameters.",
+						(curRole ? curRole->get_mention() : "(none)"),
+						(curChannel ? curChannel->get_mention() : "(none)")
+					)
+				}
+			}
 		};
 	}
 
@@ -291,7 +293,7 @@ CommandResponse CommandHandler::command<"server settings study">(
 	}
 	std::vector<std::string> warnings;
 
-	if (true || !helper.guild->saveSettings())
+	if (!helper.guild->saveSettings())
 	{
 		warnings.emplace_back(
 			"\n\xE2\x9A\xA0**There was an issue saving the settings, "
