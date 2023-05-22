@@ -247,7 +247,7 @@ int Bot::run()
 			}
 		);
 		_bot->on_slashcommand(
-			[](const auto& e)
+			[](const dpp::slashcommand_t& e)
 			{
 				_s_instance->_onSlashCommandEvent(e);
 			}
@@ -620,21 +620,9 @@ auto Bot::_findCommand(
 		e.reply(reply);
 		return (&(*it));
 	}
-	try
-	{
-		CommandHandler handler{e};
+	CommandHandler handler{e};
 
-		handler.exec(it->handler, std::span<const dpp::command_data_option>{command_options});
-	}
-	catch (const std::exception &exception)
-	{
-#ifndef B12_DEBUG
-		e.reply(fmt::format("{} Internal error", lang::ERROR_EMOJI));
-#else
-		e.reply(fmt::format("{} Internal error\n[DEBUG] {}", lang::ERROR_EMOJI, exception.what()));
-#endif
-		throw;
-	}
+	handler.exec(it->handler, std::span<const dpp::command_data_option>{command_options});
 	return (&(*it));
 }
 

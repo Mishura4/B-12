@@ -1,5 +1,7 @@
 #pragma once
 
+#include <type_traits>
+
 #include "B12.h"
 #include "CommandHandler.h"
 #include "CommandResponse.h"
@@ -12,7 +14,7 @@ using namespace B12;
 template <string_literal Command>
 constexpr inline auto default_command_handler = &CommandHandler::command<Command>;
 
-template <string_literal Name, command_handler_type auto Handler, command_option_type... Options>
+template <string_literal Name, command_handler_type auto Handler, typename... Options>
 constexpr auto make_command(std::string_view description, Options&&... options)
 {
 	return (Command<Name, Handler, Options...>(description, std::forward<Options>(options)...));
@@ -25,7 +27,8 @@ constexpr auto make_command(std::string_view description, Options&&... options)
 		Command<Name, default_command_handler<Name>, Options...>(description, std::forward<Options>(options)...));
 }
 
-template <string_literal Name, command_option_type... Options>
+template <string_literal Name, typename... Options>
+requires (true && ... && _::is_command_option<std::remove_cvref_t<Options>>)
 constexpr auto make_command(
 	std::string_view description,
 	uint64_t         user_permissions,
@@ -33,7 +36,7 @@ constexpr auto make_command(
 	Options&&...     options
 )
 {
-	return (Command<Name, default_command_handler<Name>, Options...>(
+	return (Command<Name, default_command_handler<Name>, std::remove_cvref_t<Options>...>(
 		description,
 		user_permissions,
 		bot_permissions,
@@ -41,13 +44,13 @@ constexpr auto make_command(
 	));
 }
 
-template <shion::string_literal Name, command_handler_type auto Handler = default_command_handler<Name>>
+template <shion::basic_string_literal Name, command_handler_type auto Handler = default_command_handler<Name>>
 constexpr auto make_command(std::string_view description)
 {
 	return (Command<Name, Handler>(description));
 }
 
-template <shion::string_literal Name, dpp_command_option_type... CommandTypes>
+template <shion::basic_string_literal Name, dpp_command_option_type... CommandTypes>
 constexpr auto make_option(std::string_view description, bool required, CommandTypes&&... types)
 {
 	return (CommandOption<Name, sizeof...(CommandTypes)>(
@@ -104,5 +107,21 @@ inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(
 		dpp::p_send_messages,
 		dpp::p_send_messages,
 		CommandOption<"name-or-number", 1>{"Name or national number of the pokemon", true, dpp::co_string}
+	),
+	make_command<"poll">(
+		"Create a poll",
+		dpp::p_send_messages,
+		dpp::p_send_messages,
+		CommandOption<"title", 1>{"Title of the poll", true, dpp::co_string},
+		CommandOption<"choice-1", 1>{"Choice 1 for the poll", true, dpp::co_string},
+		CommandOption<"choice-2", 1>{"Choice 2 for the poll", true, dpp::co_string},
+		CommandOption<"choice-3", 1>{"Choice 3 for the poll", false, dpp::co_string},
+		CommandOption<"choice-4", 1>{"Choice 4 for the poll", false, dpp::co_string},
+		CommandOption<"choice-5", 1>{"Choice 5 for the poll", false, dpp::co_string},
+		CommandOption<"choice-6", 1>{"Choice 6 for the poll", false, dpp::co_string},
+		CommandOption<"choice-7", 1>{"Choice 7 for the poll", false, dpp::co_string},
+		CommandOption<"choice-8", 1>{"Choice 8 for the poll", false, dpp::co_string},
+		CommandOption<"create-thread", 1>{"Whether to create a thread or not (default: no)", false, dpp::co_boolean},
+		CommandOption<"ping-role", 1>{"Role to ping / to grab into the thread (default: none)", false, dpp::co_role}
 	)
 );

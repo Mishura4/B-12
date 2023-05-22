@@ -59,6 +59,8 @@ void CommandHandler::_process(CommandResponse& response)
 	std::visit(post_process, response.type);
 	for (const auto& m : response.content.other_messages)
 		_cluster->message_create(m);
+	if (std::holds_alternative<CommandResponse::None>(response.type))
+		return;
 	response.format();
 	_source.reply(response);
 }

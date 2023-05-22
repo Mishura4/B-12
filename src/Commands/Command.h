@@ -63,16 +63,11 @@ namespace B12
 	namespace _
 	{
 		template <typename T>
-		struct is_command_option_s
-		{
-			static constexpr bool value = false;
-		};
+		inline constexpr bool is_command_option = false;
 
-		template <shion::string_literal Name, size_t NumTypes>
-		struct is_command_option_s<CommandOption<Name, NumTypes>>
-		{
-			static constexpr bool value = true;
-		};
+		template <auto Name, size_t NumTypes>
+		requires (shion::is_string_literal<decltype(Name)>)
+		inline constexpr bool is_command_option<CommandOption<Name, NumTypes>> = true;
 
 		template <typename T>
 		// because visual studio struggles with name resolution of template pack parameters
@@ -80,7 +75,7 @@ namespace B12
 	}
 
 	template <typename T>
-	concept command_option_type = _::is_command_option_s<T>::value;
+	concept command_option_type = _::is_command_option<T>;
 
 	// minimal permission for the bot to use a command for the purpose of command default constructors : send messages
 	constexpr static size_t COMMAND_DEFAULT_BOT_PERMISSIONS = dpp::permissions::p_send_messages;
@@ -107,8 +102,9 @@ namespace B12
 
 	template <
 		shion::string_literal Name,
-		command_handler_type auto Handler,
-		command_option_type... Options>
+		auto Handler,
+		typename... Options>
+	requires (command_handler_type<decltype(Handler)> && (true && ... && command_option_type<Options>))
 	struct Command : Options...
 	{
 		using Options::get_option...;

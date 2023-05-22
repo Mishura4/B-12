@@ -66,9 +66,23 @@ namespace B12
 		invocable_r<Callable, CommandResponse, CommandHandler *, Args...>)
 	void CommandHandler::exec(Callable&& callable, Args&&... args)
 	{
-		CommandResponse response = call(std::forward<Callable>(callable), std::forward<Args>(args)...);
+		try
+		{
+			CommandResponse response = call(std::forward<Callable>(callable), std::forward<Args>(args)...);
 
-		_process(response);
+			_process(response);
+		}
+		catch (const std::exception &exception)
+		{
+#ifndef B12_DEBUG
+			CommandResponse response{CommandResponse::InternalError{}, fmt::format("{} Internal error.", lang::ERROR_EMOJI, exception.what())};
+#else
+			CommandResponse response{CommandResponse::InternalError{}, fmt::format("{} Internal error.\n[DEBUG] {}", lang::ERROR_EMOJI, exception.what())};
+
+			_process(response);
+#endif
+			throw;
+		}
 	}
 
 }

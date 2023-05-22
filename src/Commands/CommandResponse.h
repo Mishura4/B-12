@@ -34,6 +34,8 @@ namespace B12
 			seconds                        lifetime{0};
 		};
 
+		struct None {};
+
 		using PossibleTypes = shion::type_list<
 			Success,
 			SuccessEdit,
@@ -43,7 +45,8 @@ namespace B12
 			APIError,
 			ConfigError,
 			UsageError,
-			Confirm
+			Confirm,
+			None
 		>;
 
 		using Data = PossibleTypes::as_variant;
