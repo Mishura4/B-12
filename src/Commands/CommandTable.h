@@ -97,5 +97,12 @@ inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(
 		CommandOption<"user", 1>{"User to ban or retrieve ban information", true, dpp::co_user},
 		CommandOption<"time", 1>{"Time to ban a user for", false, dpp::co_string},
 		CommandOption<"reason", 1>{"Reason for the ban", false, dpp::co_string}
+	),
+	make_command<"pokemon", nullptr>("Pokemon-related commands"),
+	make_command<"pokemon dex">(
+		"Show information from a pokemon",
+		dpp::p_send_messages,
+		dpp::p_send_messages,
+		CommandOption<"name-or-number", 1>{"Name or national number of the pokemon", true, dpp::co_string}
 	)
 );

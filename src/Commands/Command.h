@@ -27,15 +27,29 @@ namespace B12
 			possible_types{types_...},
 			required(required_) {}
 
-		template <decltype(NAME)key>
-			requires(key == NAME)
+		template <decltype(NAME) key>
+			requires(!shion::is_string_literal<decltype(NAME)> && key == NAME)
 		constexpr const auto &get_option() const
 		{
 			return (*this);
 		}
 
-		template <decltype(NAME)key>
-			requires(key == NAME)
+		template <decltype(NAME) key>
+			requires(!shion::is_string_literal<decltype(NAME)> && key == NAME)
+		constexpr auto &get_option()
+		{
+			return (*this);
+		}
+
+		template <string_literal key>
+			requires(shion::is_string_literal<decltype(NAME)> && NAME.strict_equals(key))
+		constexpr const auto &get_option() const
+		{
+			return (*this);
+		}
+
+		template <string_literal key>
+			requires(shion::is_string_literal<decltype(NAME)> && NAME.strict_equals(key))
 		constexpr auto &get_option()
 		{
 			return (*this);
@@ -115,7 +129,7 @@ namespace B12
 			bot_permissions{bot_permissions_} {}
 
 		using option_list = shion::type_list<Options...>;
-		using option_names = shion::value_list<_::command_option_name<Options>...>;
+		using option_names = shion::value_list<Options::NAME...>;
 
 		static constexpr auto name           = Name;
 		static constexpr auto handler        = Handler;

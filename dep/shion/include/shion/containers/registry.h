@@ -20,7 +20,7 @@ namespace shion
   {
     // intellisense doesn't seem to like template <auto> constraint overloads, so it requires this to correctly resolve them
     template <typename T>
-    concept intellisense_literal_fix = !shion::is_string_literal_s<T>::value && !std::is_same_v<T, const char *>;
+    concept intellisense_literal_fix = !shion::is_string_literal<T> && !std::is_same_v<T, const char *>;
 
 
     template <typename T>
@@ -30,13 +30,13 @@ namespace shion
     };
 
     template <typename CharT, size_t N>
-    struct field_runtime_key_type_s<shion::string_literal<CharT, N>>
+    struct field_runtime_key_type_s<shion::basic_string_literal<CharT, N>>
     {
       using type = std::basic_string_view<CharT>;
     };
 
     template <typename CharT, size_t N>
-    struct field_runtime_key_type_s<const shion::string_literal<CharT, N>>
+    struct field_runtime_key_type_s<const shion::basic_string_literal<CharT, N>>
     {
       using type = std::basic_string_view<CharT>;
     };
@@ -94,11 +94,21 @@ namespace shion
         return (typename field_runtime_key_type_s<key_type>::type{key});
       }
 
-      template <decltype(KEY) V> requires (KEY == V)
-        constexpr T &get() noexcept { return (value); }
+      template <decltype(KEY) V>
+    	  requires (!is_string_literal<decltype(KEY)> && KEY == V)
+      constexpr T &get() noexcept { return (value); }
 
-      template <decltype(KEY) V> requires (KEY == V)
-        constexpr T const &get() const noexcept { return (value); }
+      template <decltype(KEY) V>
+    	  requires (!is_string_literal<decltype(KEY)> && KEY == V)
+      constexpr T const &get() const noexcept { return (value); }
+
+      template <string_literal V>
+    	  requires (is_string_literal<decltype(KEY)> && V.strict_equals(KEY))
+      constexpr T &get() noexcept { return (value); }
+
+      template <string_literal V>
+    	  requires (is_string_literal<decltype(KEY)> && V.strict_equals(KEY))
+      constexpr T const &get() const noexcept { return (value); }
 
       template<auto K>
       constexpr static auto _has_key()
@@ -124,6 +134,9 @@ namespace shion
   template <typename T>
   constexpr auto registry_key_get = T::key;
 
+  template <typename T>
+  using registry_value_type_t = typename T::value_type; // MSVC workaround
+
   template <typename... Fields>
   struct registry : private Fields...
   {
@@ -144,10 +157,10 @@ namespace shion
     }
 
     using key_list = shion::value_list<registry_key_get<Fields>...>;
-    using value_type_list = shion::type_list<typename Fields::value_type...>;
+    using value_type_list = shion::type_list<registry_value_type_t<Fields>...>;
     using field_type_list = shion::type_list<Fields...>;
 
-    template <shion::string_literal key>
+    template <shion::basic_string_literal key>
     consteval bool has_key() const noexcept
     {
       return (Fields::template _has_key<key>() || ...);
@@ -157,7 +170,7 @@ namespace shion
       requires (_::intellisense_literal_fix<decltype(key)>)
     consteval bool has_key() const noexcept
     {
-      return (Fields::template _has_key<key>() || ...);
+        return (requires (registry r) {r.get<key>();});
     }
 
     constexpr auto static_fields()
@@ -367,13 +380,13 @@ namespace shion
   template <typename MapType, typename... Ts>
   dynamic_registry(registry_tag<MapType>, Ts...) -> dynamic_registry<MapType, Ts...>;
 
-  template <shion::string_literal key, typename T>
+  template <shion::basic_string_literal key, typename T>
   constexpr auto field(T &&value) -> _::registry_field<key, T>
   {
     return {value};
   }
 
-  template <shion::string_literal key, typename T, typename... Args>
+  template <shion::basic_string_literal key, typename T, typename... Args>
   constexpr auto field(Args&&... args) -> _::registry_field<key, T>
   {
     return _::registry_field<key, T>(std::forward<Args>(args)...);

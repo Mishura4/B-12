@@ -4,6 +4,10 @@
 #include <exception>
 #include <filesystem>
 
+#include "../API/APICache.h"
+
+#include "../Pokemon/PokemonAPI.h"
+
 #include "Commands/MultiCommandProcess.h"
 #include "Data/Database.h"
 #include "Guild/Guild.h"
@@ -103,6 +107,8 @@ namespace B12
 		{
 			_s_instance->_running = false;
 		}
+
+		static inline std::unique_ptr<PokeAPICache> pokemon_cache = nullptr;
 
 	private:
 		struct CommandParameter
@@ -207,7 +213,7 @@ namespace B12
 			_debugLogFile,
 			LogLevel::BASIC | LogLevel::INFO | LogLevel::DEBUG | LogLevel::ERROR
 		};
-		Logger<std::ostream&> _coutLogger{std::cout, LogLevel::BASIC | LogLevel::INFO};
+		Logger<std::ostream&> _coutLogger{std::cout, LogLevel::TRACE | LogLevel::BASIC | LogLevel::INFO};
 		Logger<std::ostream&> _cerrLogger{std::cerr, LogLevel::ERROR};
 
 		LoggerSystem<std::fstream&, std::ostream&> _logger{

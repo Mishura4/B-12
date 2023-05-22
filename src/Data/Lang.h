@@ -147,7 +147,7 @@ namespace B12
 		#define B12_CROSS_MARK "\xE2\x9D\x8C"
 
 		inline constexpr auto ERROR_EMOJI = std::string_view{B12_CROSS_MARK};
-		inline constexpr auto SUCCESS_EMOJI = "\u2705"sv;
+		inline constexpr auto SUCCESS_EMOJI = "\xE2\x9C\x85"sv;
 		// clang-format off
 		inline constexpr lang LANG_EN_US{
 			.DEV_WRONG_CHANNEL

@@ -7,8 +7,10 @@
 #include <condition_variable>
 #include <mutex>
 #include <typeinfo>
+#include <chrono>
 
 #include <fmt/format.h>
+#include <fmt/std.h>
 
 #include <shion/types.h>
 #include <shion/containers/registry.h>
@@ -36,13 +38,65 @@ using namespace std::chrono_literals;
 namespace B12
 {
 	using shion::io::LogLevel;
+	using nlohmann::json;
+
+	using app_time = std::chrono::steady_clock::time_point;
+	using file_time = std::chrono::file_clock::time_point;
+	using utc_time = std::chrono::utc_clock::time_point;
+
+	struct empty_t
+	{};
+
+	constexpr inline auto empty = empty_t{};
+
+	struct value_init_t
+	{
+	};
+
+	template <typename... Ts>
+	struct invalid_t
+	{
+		consteval invalid_t()
+		{
+			static_assert(!(std::same_as<Ts, Ts> && ...));
+		}
+	};
+
+	template <bool condition, auto lhs, auto rhs>
+	constexpr inline auto conditional_v = invalid_t<decltype(lhs), decltype(rhs)>{};
+
+	template <auto lhs, auto rhs>
+	constexpr inline auto conditional_v<true, lhs, rhs> = lhs;
+
+	template <auto lhs, auto rhs>
+	constexpr inline auto conditional_v<false, lhs, rhs> = rhs;
+
+	template <bool condition, typename Lhs, typename Rhs>
+	constexpr auto conditional_fwd(Lhs&& lhs, Rhs&& rhs) -> decltype(auto)
+	{
+		if constexpr (condition)
+			return (static_cast<Lhs&&>(lhs));
+		else
+			return (static_cast<Rhs&&>(rhs));
+	}
+
+	constexpr inline value_init_t value_init{};
 
 	class Guild;
 	struct CommandResponse;
 
+	template <typename Lhs, typename Rhs>
+	concept less_comparable_with = requires (Lhs lhs, Rhs rhs){{lhs < rhs} -> std::convertible_to<bool>;};
+
 	template <typename InteractionType>
 	static inline constexpr bool is_interaction_event = std::is_base_of_v<
 		dpp::interaction_create_t, InteractionType>;
+
+	inline constexpr auto to_upper = [](char &c)
+	{
+		if (c > 'a' && c < 'z')
+			c += 'A' - 'a';
+	};
 
 	void log(LogLevel level, std::string_view str);
 
@@ -66,7 +120,9 @@ namespace B12
 		const dpp::button_click_t& event
 	);
 
-	;
+	constexpr inline auto is_whitespace = [](char c) constexpr {
+		return (c == ' ' || c == '\t');
+	};
 
 	// Class to streamline the execution of D++'s async request API
 	// TODO doc on how to use, in the meantime one can look at the Study command
@@ -103,7 +159,7 @@ namespace B12
 				const dpp::http_request_completion_t& res = result;
 
 				if (res.error != dpp::h_success)
-					_on_error(dpp::error_info{res.error, fmt::format("error code {}", res.error), {}});
+					_on_error(dpp::error_info{static_cast<uint32_t>(res.error), fmt::format("error code {}", res.error), {}});
 				else
 					_on_success(res);
 			}
@@ -137,6 +193,11 @@ namespace B12
 			_complete = false;
 			std::invoke(routine, std::forward<Args>(args)..., _rest_callback);
 			return (*this);
+		}
+
+		~AsyncExecutor()
+		{
+			wait();
 		}
 
 		void wait()

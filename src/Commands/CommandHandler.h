@@ -5,8 +5,8 @@
 #include "Command.h"
 
 #include "../Guild/Guild.h"
-
 #include "Data/Lang.h"
+#include "CommandSource.h"
 
 namespace B12
 {
@@ -15,13 +15,13 @@ namespace B12
 	public:
 		CommandHandler(const CommandHandler &) = delete;
 		CommandHandler(CommandHandler &&) = delete;
-		
+
 		CommandHandler &operator=(const CommandHandler &) = delete;
 		CommandHandler &operator=(CommandHandler &&) = delete;
-		
+
 		CommandHandler(const dpp::slashcommand_t& e);
 		CommandHandler(const dpp::button_click_t& e);
-	
+
 		template <typename Callable, typename... Args>
 		auto call(Callable&& callable, Args&&... args) -> CommandResponse;
 
@@ -35,14 +35,10 @@ namespace B12
 		{
 			exec(&CommandHandler::command<Command>, options);
 		}
-		
+
 		template <string_literal Command>
 		CommandResponse command(command_option_view options);
 
-		void sendThink(bool ephemeral = true);
-
-		bool isInteraction() const;
-	
 	private:
 		dpp::cluster *_cluster;
 		const dpp::user *_issuer{nullptr};
@@ -50,30 +46,12 @@ namespace B12
 		const dpp::guild_member *_member_issuer{nullptr};
 		const dpp::channel *_channel{nullptr};
 
-		struct InteractionSource
-		{
-			enum Type
-			{
-				UNKNOWN = 0,
-				SLASH_COMMAND,
-				BUTTON_CLICK
-			};
-			const dpp::interaction_create_t *event;
-			Type type{UNKNOWN};
-			bool has_replied{false};
-			
-			AsyncExecutor<dpp::confirmation> thinking_executor{[this](const dpp::confirmation &)
-			{
-				has_replied = true;
-			}};
-		};
+		CommandSource _source;
 
-		std::variant<InteractionSource> _source;
-
-		auto _getInteraction() -> InteractionSource &;
+		auto _getInteraction() -> CommandSource::Interaction &;
 		void _process(CommandResponse &response);
 	};
-	
+
 	template <typename Callable, typename... Args>
 	auto CommandHandler::call(Callable&& callable, Args&&... args) -> CommandResponse
 	{

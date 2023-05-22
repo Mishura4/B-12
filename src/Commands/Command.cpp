@@ -17,25 +17,42 @@ using namespace B12;
   dpp::message test{"test"};
   dpp::user author   = interaction.get_issuing_user();
   std::string name =
-    test.member.nickname.empty() ? author.username : test.member.nickname;
+	test.member.nickname.empty() ? author.username : test.member.nickname;
   std::string avatar = test.member.get_avatar_url();
 
   if (avatar.empty())
-    avatar = author.get_avatar_url();
+	avatar = author.get_avatar_url();
   test.member = interaction.member;
   test.author = Bot::bot().me;
   test.set_channel_id(interaction.channel_id);
   test.set_guild_id(interaction.guild_id);
   Bot::bot().get_webhook(
-    1082795079166599228,
-    [=](const dpp::confirmation_callback_t &confirm) {
-      auto hook = std::get<dpp::webhook>(confirm.value);
+	1082795079166599228,
+	[=](const dpp::confirmation_callback_t &confirm) {
+	  auto hook = std::get<dpp::webhook>(confirm.value);
 
-      hook.name   = std::format("{} (@{})", name, guild->dppGuild().name);
-      hook.avatar = avatar;
-      Bot::bot().execute_webhook(hook, test);
-    }
+	  hook.name   = std::format("{} (@{})", name, guild->dppGuild().name);
+	  hook.avatar = avatar;
+	  Bot::bot().execute_webhook(hook, test);
+	}
   );*/
+
+struct promise;
+
+struct test_coroutine : std::coroutine_handle<promise>
+{
+	using promise_type = ::promise;
+};
+
+struct promise
+{
+	test_coroutine get_return_object() { return {test_coroutine::from_promise(*this)}; }
+	
+    std::suspend_always initial_suspend() noexcept { return {}; }
+    std::suspend_always final_suspend() noexcept { return {}; }
+    void return_void() {}
+    void unhandled_exception() {}
+};
 
 template <>
 CommandResponse CommandHandler::command<"meow">(
@@ -46,7 +63,55 @@ CommandResponse CommandHandler::command<"meow">(
 	static constexpr auto INTRO_URL =
 		"https://cdn.discordapp.com/attachments/1066393377236594699/1066779084845220020/b-12.mp4"sv;
 
-	return {CommandResponse::Success{}, {std::string{INTRO_URL}}};
+	dpp::message response =
+	{ std::string{INTRO_URL} };
+
+	_source.sendThink(false);
+	/*auto test = [&]() -> dpp::task {
+		auto channel_id = std::get<0>(this->_source.source).event.command.channel_id;
+		auto guild_id = std::get<0>(this->_source.source).event.command.guild_id;
+		dpp::confirmation_callback_t confirm;
+		std::optional<dpp::thread> threads[3];
+
+		for (int i = 0; i < 3; ++i)
+		{
+			confirm = co_await Bot::bot().co_thread_create(fmt::format("test {}", i), channel_id, 60, dpp::CHANNEL_PUBLIC_THREAD, false, 60);
+			if (confirm.is_error())
+			{
+				co_await Bot::bot().co_message_create(dpp::message{"failed to create thread"}.set_channel_id(channel_id));
+			}
+		}
+
+		confirm = co_await Bot::bot().co_threads_get_active(guild_id);
+
+		if (confirm.is_error())
+		{
+			co_await Bot::bot().co_message_create(dpp::message{"failed to get threads"}.set_channel_id(channel_id));
+		}
+		else
+		{
+			const auto &active_threads = confirm.get<dpp::active_threads>();
+
+			for (const auto &threads : active_threads)
+			{
+				const auto &active_thread = threads.second;
+
+				if (active_thread.active_thread.parent_id == channel_id)
+				{
+					confirm = co_await Bot::bot().co_message_create(dpp::message{fmt::format("found thread : {}", active_thread.active_thread.name)}.set_channel_id(channel_id));
+					if (active_thread.bot_member || !(co_await Bot::bot().co_current_user_join_thread(active_thread.active_thread.id)).is_error())
+					{
+						co_await Bot::bot().co_message_create(dpp::message("hello").set_channel_id(active_thread.active_thread.id));
+					}
+					confirm = co_await Bot::bot().co_channel_delete(active_thread.active_thread.id);
+				}
+			}
+		}
+	};
+
+	auto task = test();*/
+	
+	return {CommandResponse::Success{}, response};
 }
 
 template <>

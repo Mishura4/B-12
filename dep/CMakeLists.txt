@@ -3,6 +3,8 @@ if ((${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" S
 	set(CMAKE_C_COMPILER "${CMAKE_CXX_COMPILER}" CACHE STRING "Clang-cl C fix")
 endif()
 
+set(DPP_CORO ON)
+
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/fmt)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/boost_pfr)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/magic_enum)

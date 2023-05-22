@@ -79,6 +79,7 @@ int main(int argc, char* argv[])
 	}
 	catch (const std::exception &e)
 	{
+		std::cerr << "Top-level exception caught : " << e.what() << std::endl;
 		throw;
 	}
 

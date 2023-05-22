@@ -235,7 +235,7 @@ CommandResponse CommandHandler::command<"server sticker grab">(
 
 	CommandResponse ret{CommandResponse::Success{}};
 
-	sendThink(false);
+	_source.sendThink(false);
 	for (const dpp::sticker& s : message->stickers)
 	{
 		auto content = sticker_content_get(s);

@@ -111,7 +111,7 @@ CommandResponse CommandHandler::command<"ban">(
 			return {CommandResponse::InternalError{}, {fmt::format("Unknown or invalid option {} of type {}"sv, opt.name, magic_enum::enum_name(opt.type))}};
 	}
 	
-	sendThink(false);
+	_source.sendThink(false);
 
 	std::optional<dpp::ban> ban{std::nullopt};
 	AsyncExecutor<dpp::ban> ban_retriever{[&](const dpp::ban &b)

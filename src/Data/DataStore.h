@@ -102,10 +102,11 @@ namespace B12
 		{
 			static consteval auto getConstraint()
 			{
-				return (shion::literal_concat<
+				return (shion::literal_concat(
 					sql_constraint_for_field_attr<flags & FieldAttributeFlags::PRIMARY_KEY>,
 					sql_constraint_for_field_attr<flags & FieldAttributeFlags::NOT_NULL>,
-					sql_constraint_for_field_attr<flags & FieldAttributeFlags::UNIQUE>>());
+					sql_constraint_for_field_attr<flags & FieldAttributeFlags::UNIQUE>
+				));
 			}
 		};
 
@@ -186,12 +187,12 @@ namespace B12
 				constexpr auto    idxSeq = std::make_index_sequence<edit_entry::field_type_list::size>();
 				UpdateHelper      helper{*this};
 
-				queryStream << std::string_view(shion::literal_concat<"UPDATE ", Name, " SET">());
+				queryStream << std::string_view(shion::literal_concat("UPDATE ", Name, " SET"));
 				helper.fillFieldRelationalList(queryStream, idxSeq);
 				if (!helper.num_edited_fields) // no fields to update
 					return (true);
 				queryStream << std::string_view(
-					shion::literal_concat<"\nWHERE ", primaryKey, " = ?">()
+					shion::literal_concat("\nWHERE ", primaryKey, " = ?")
 				);
 
 				stmt = _data_store._database->prepare(queryStream.str());
@@ -247,7 +248,7 @@ namespace B12
 					if (!entry.template get<key>().edited)
 						return;
 
-					constexpr auto line = shion::literal_concat<"\n\t", _getFieldName<N>(), " = ?">();
+					constexpr auto line = shion::literal_concat("\n\t", _getFieldName<N>(), " = ?");
 
 					num_edited_fields++;
 					if (oss.view().size())
@@ -335,7 +336,7 @@ namespace B12
 				if constexpr (N == 0)
 					return (field_name);
 				else
-					return (shion::literal_concat<", ", field_name>());
+					return (shion::literal_concat(", ", field_name));
 			}
 
 			template <size_t... N>
@@ -345,7 +346,7 @@ namespace B12
 					return (_getFieldName<T, 0>());
 				else
 				{
-					return (shion::literal_concat<_getFieldNameWithComma<N>()...>());
+					return (shion::literal_concat(_getFieldNameWithComma<N>()...));
 				}
 			}
 
@@ -355,7 +356,7 @@ namespace B12
 				if constexpr (N == 0)
 					return (string_literal{"?"});
 				else
-					return (shion::literal_concat<", ", string_literal{"?"}>());
+					return (shion::literal_concat(", ", string_literal{"?"}));
 			}
 
 			template <size_t... N>
@@ -364,18 +365,18 @@ namespace B12
 				if constexpr (sizeof...(N) == 1)
 					return (string_literal{"?"});
 				else
-					return (shion::literal_concat<_getFieldPlaceholder<N>()...>());
+					return (shion::literal_concat(_getFieldPlaceholder<N>()...));
 			}
 
 			template <size_t N, bool condition = true, bool comma = true>
 			static consteval auto _getFieldRelational()
 			{
-				constexpr auto line = shion::literal_concat<"\n\t", _getFieldName<N>(), " = ?">();
+				constexpr auto line = shion::literal_concat("\n\t", _getFieldName<N>(), " = ?");
 
 				if constexpr (!condition)
 					return (shion::string_literal(""));
 				else if constexpr (N != 0 && comma)
-					return (shion::literal_concat<",", line>());
+					return (shion::literal_concat(",", line));
 				else
 					return (line);
 			}
@@ -383,7 +384,7 @@ namespace B12
 			template <size_t... N>
 			static consteval auto _getFieldRelationalList(std::index_sequence<N...>)
 			{
-				return (shion::literal_concat<_getFieldRelational<N>()...>());
+				return (shion::literal_concat(_getFieldRelational<N>()...));
 			}
 
 			template <size_t N>
@@ -396,12 +397,16 @@ namespace B12
 					(0 + ... + (_attributes<N> & FieldAttributeFlags::PRIMARY_KEY ? 1 : 0));
 
 				static_assert(num_keys == 1);
-				return (shion::literal_concat<
+				return (shion::literal_concat(
 					"\nWHERE",
-					shion::literal_concat<(_getFieldRelational<
-						N,
-						_attributes<N> & FieldAttributeFlags::PRIMARY_KEY,
-						false>())...>()>());
+					shion::literal_concat(
+						(_getFieldRelational<
+							N,
+							_attributes<N> & FieldAttributeFlags::PRIMARY_KEY,
+							false>()
+						)...
+					)
+				));
 			}
 		};
 
@@ -409,12 +414,12 @@ namespace B12
 		{
 			constexpr auto idxSeq = std::make_index_sequence<T::key_list::size>();
 
-			return (shion::literal_concat<
+			return (shion::literal_concat(
 				"UPDATE ",
 				Name,
 				" SET ",
 				GeneralQueryHelper::_getFieldRelationalList(idxSeq),
-				GeneralQueryHelper::_getWhereClause(idxSeq)>());
+				GeneralQueryHelper::_getWhereClause(idxSeq)));
 		}
 
 		constexpr static auto _generateSelectQuery()
@@ -423,21 +428,21 @@ namespace B12
 
 			return (
 				shion::
-				literal_concat<"SELECT ", GeneralQueryHelper::_getFieldList(idxSeq), " FROM ", Name>());
+				literal_concat("SELECT ", GeneralQueryHelper::_getFieldList(idxSeq), " FROM ", Name));
 		}
 
 		consteval static auto _generateInsertQuery()
 		{
 			constexpr auto idxSeq = std::make_index_sequence<T::key_list::size>();
 
-			return (shion::literal_concat<
+			return (shion::literal_concat(
 				"INSERT INTO ",
 				Name,
 				"\n\t(",
 				GeneralQueryHelper::_getFieldList(idxSeq),
 				")\nVALUES (",
 				GeneralQueryHelper::_getFieldPlaceholders(idxSeq),
-				");">());
+				");"));
 		}
 
 		std::optional<T> &_fetch(dpp::snowflake id)
@@ -449,9 +454,9 @@ namespace B12
 		static consteval auto _getFieldName()
 		{
 			if constexpr (condition)
-				return (T::key_list::template at<N>);
+				return (string_literal{T::key_list::template at<N>});
 			else
-				return (shion::string_literal(""));
+				return (string_literal{""});
 		}
 
 		template <size_t N>
@@ -459,13 +464,13 @@ namespace B12
 		{
 			using helper = _::data_store_field_helper_s<typename T::field_type_list::template at<N>>;
 
-			constexpr auto line = shion::
-				literal_concat<"\n\t", _getFieldName<N>(), " ", helper::storage, helper::constraints>();
+			constexpr string_literal line = shion::
+				literal_concat("\n\t", _getFieldName<N>(), " ", helper::storage, helper::constraints);
 
 			if constexpr (N == 0)
 				return (line);
 			else
-				return (shion::literal_concat<",", line>());
+				return (shion::literal_concat(",", line));
 		}
 
 		template <size_t... N>
@@ -481,13 +486,13 @@ namespace B12
 				return (""_sl);
 			else
 			{
-				return (shion::literal_concat<
+				return (shion::literal_concat(
 					",\n\tPRIMARY KEY (",
-					shion::literal_concat<(_getFieldName<
+					(shion::literal_concat(_getFieldName<
 						N,
 						T::field_type_list::template at<N>::FIELD_ATTRIBUTES &
-						FieldAttributeFlags::PRIMARY_KEY>())...>(),
-					")">());
+						FieldAttributeFlags::PRIMARY_KEY>()...)),
+					")"));
 			}
 		}
 
@@ -495,19 +500,19 @@ namespace B12
 		static consteval auto _getCreateTableQuery(std::index_sequence<N...>)
 		{
 			return (
-				shion::literal_concat<_getCreateTableQuery<N>()..., _getConstraintsLine<N...>(), "\n">());
+				shion::literal_concat(_getCreateTableQuery<N>()..., _getConstraintsLine<N...>(), "\n"));
 		}
 
 		consteval static auto _generateCreateTableQuery()
 		{
 			constexpr auto idxSeq = std::make_index_sequence<T::key_list::size>();
 
-			return (shion::literal_concat<
+			return (shion::literal_concat(
 				"CREATE TABLE IF NOT EXISTS ",
 				Name,
 				" (",
 				_getCreateTableQuery(idxSeq),
-				");">());
+				");"));
 		}
 
 		template <size_t N>

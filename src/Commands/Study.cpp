@@ -41,8 +41,8 @@ CommandResponse CommandHandler::command<"study">(
 	const dpp::role&         studyRole = guild->studyRole().value();
 	const dpp::guild_member& issuer    = *_member_issuer;
 
-	sendThink(true);
-	if (std::ranges::find(issuer.roles, studyRole.id) != issuer.roles.end())
+	_source.sendThink(true);
+	if (std::ranges::find(issuer.roles, dpp::snowflake(studyRole.id)) != issuer.roles.end())
 	{
 		// user has the study role, remove it
 		AsyncExecutor<dpp::confirmation> roleExecutor(
@@ -93,9 +93,9 @@ CommandResponse CommandHandler::command<"study">(
 		);
 
 		roleExecutor.wait();
-		if (isInteraction())
+		if (_source.isInteraction())
 		{
-			const auto& interaction_data = _getInteraction().event->command.data;
+			const auto& interaction_data = _getInteraction().event.command.data;
 
 			if (std::holds_alternative<dpp::command_interaction>(interaction_data))
 			{
@@ -108,7 +108,7 @@ CommandResponse CommandHandler::command<"study">(
 						issuer.get_mention(),
 						slash_command.get_mention()
 					)
-				).set_reference(_getInteraction().event->command.id);
+				).set_reference(_getInteraction().event.command.id);
 			}
 		}
 		return (reply);

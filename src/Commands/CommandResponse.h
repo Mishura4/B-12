@@ -15,6 +15,11 @@ namespace B12
 
 		struct SuccessAction {};
 
+		struct Thinking
+		{
+			bool ephemeral{false};
+		};
+
 		struct InternalError {};
 
 		struct APIError {};
@@ -33,6 +38,7 @@ namespace B12
 			Success,
 			SuccessEdit,
 			SuccessAction,
+			Thinking,
 			InternalError,
 			APIError,
 			ConfigError,
@@ -91,6 +97,8 @@ namespace B12
 			content.message.content = fmt::format("{}{}", content.message.content, str);
 			return (*this);
 		}
+
+		void format();
 
 		Data                                          type{InternalError{}};
 		Content                                       content{};

@@ -64,6 +64,8 @@ std::string Bot::_fetchToken(const char* console_arg) const
 
 Bot::Bot(const char* discord_token)
 {
+	std::locale::global(std::locale("en_US.UTF-8"));
+	
 	struct BotSingletonException : public FatalException
 	{
 		using FatalException::FatalException;
@@ -98,6 +100,8 @@ Bot::Bot(const char* discord_token)
 		_bot          = std::make_unique<dpp::cluster>(_fetchToken(discord_token));
 		_bot->intents = dpp::intents::i_message_content | dpp::intents::i_guild_messages;
 		_bot->on_log(dpp_log);
+		log(LogLevel::BASIC, "Loading resource caches");
+		pokemon_cache = std::make_unique<PokeAPICache>(_bot.get());
 	}
 	catch (const std::exception& e)
 	{
@@ -622,9 +626,13 @@ auto Bot::_findCommand(
 
 		handler.exec(it->handler, std::span<const dpp::command_data_option>{command_options});
 	}
-	catch (...)
+	catch (const std::exception &exception)
 	{
+#ifndef B12_DEBUG
 		e.reply(fmt::format("{} Internal error", lang::ERROR_EMOJI));
+#else
+		e.reply(fmt::format("{} Internal error\n[DEBUG] {}", lang::ERROR_EMOJI, exception.what()));
+#endif
 		throw;
 	}
 	return (&(*it));
