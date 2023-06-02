@@ -13,8 +13,8 @@ namespace B12
 	template <typename Endpoint>
 	struct ResourceCache;
 
-	template <template<typename, bool> typename EndpointT, string_literal Name, typename ID, bool CanUseName>
-	requires (std::convertible_to<ID, size_t> && sizeof(ID) <= 2)
+	template <template<typename, bool> typename EndpointT, shion::basic_string_literal Name, typename ID, bool CanUseName>
+	  requires (std::constructible_from<size_t, ID> && sizeof(ID) <= 2)
 	struct ResourceCache<EndpointT<APIResource<Name, ID>, CanUseName>>
 	{
 		using Endpoint = EndpointT<APIResource<Name, ID>, CanUseName>;
@@ -111,7 +111,7 @@ namespace B12
 			// otherwise, first try to get saved files
 			namespace fs = std::filesystem;
 			
-			fs::path cache_path = shion::literal_concat(Endpoint::API::NAME, "/", Name).data;
+			fs::path cache_path = shion::literal_concat(Endpoint::API_t::NAME, "/", Name).data;
 			std::error_code err;
 
 			cache_path /= fmt::format("{}.json", id);
@@ -121,7 +121,7 @@ namespace B12
 			{
 				if (std::ifstream fs{cache_path}; fs.good())
 				{
-					entry->resource = std::make_shared<Resource>(Resource{.json = json::parse(fs)});
+					entry->resource = std::make_shared<Resource>(Resource{.resource = json::parse(fs)});
 					entry->time_retrieved = fstime_now;
 					return (make_accessor(*entry));
 				}
@@ -155,7 +155,7 @@ namespace B12
 				if (!id.has_value())
 					id = resource_id<Resource>(json);
 
-				std::shared_ptr<Resource> ptr = std::make_shared<Resource>(Resource{.json = std::move(json), .id = id.value_or(std::numeric_limits<ID>::max())});
+				std::shared_ptr<Resource> ptr = std::make_shared<Resource>(Resource{.resource = std::move(json), .id = id.value_or(std::numeric_limits<ID>::max())});
 				
 				if (id.has_value())
 				{

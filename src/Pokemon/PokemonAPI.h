@@ -15,13 +15,13 @@ namespace B12
 	template <>
 	constexpr inline auto resource_name<PokemonResource> = [](const json &resource) -> std::string_view
 	{
-		return (resource["name"]);
+	  return (resource["name"].get<std::string_view>());
 	};
 
 	template <>
 	constexpr inline auto resource_name<PokemonSpeciesResource> = [](const json &resource) -> std::string_view
 	{
-		return (resource["name"]);
+	  return (resource["name"].get<std::string_view>());
 	};
 
 	struct PokeAPI : API<"pokeapi", "https://pokeapi.co/api/v2/">
@@ -33,7 +33,7 @@ namespace B12
 	inline constexpr PokeAPI POKE_API{};
 
 	template <auto V>
-	using cache_for = ResourceCache<decltype(V)>;
+	  using cache_for = ResourceCache<std::remove_cvref_t<decltype(V)>>;
 
 	struct PokeAPICache : APICache<PokeAPI>
 	{

@@ -23,14 +23,14 @@ namespace B12
 		return {std::nullopt};
 	};
 	
-	template <string_literal Name, typename ID>
+	template <shion::basic_string_literal Name, typename ID>
 	struct APIResource
 	{
 		using id_type = ID;
 		static inline constexpr auto NAME = Name;
 		
-		json json;
-		ID id = resource_id<APIResource>(json).value_or(std::numeric_limits<ID>::max());
+		json resource;
+		ID id = resource_id<APIResource>(resource).value_or(std::numeric_limits<ID>::max());
 	};
 
 	template <typename T>

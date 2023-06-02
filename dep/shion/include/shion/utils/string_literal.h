@@ -246,6 +246,7 @@ namespace fmt
 	};
 }
 
+#ifdef __cpp_lib_format
 namespace std
 {
 	template <typename T>
@@ -261,5 +262,6 @@ namespace std
 		}
 	};
 }
+#endif
 
 #endif

@@ -170,7 +170,7 @@ namespace shion
       requires (_::intellisense_literal_fix<decltype(key)>)
     consteval bool has_key() const noexcept
     {
-        return (requires (registry r) {r.get<key>();});
+        return (requires (registry r) {r.template get<key>();});
     }
 
     constexpr auto static_fields()

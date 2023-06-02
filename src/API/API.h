@@ -19,7 +19,7 @@ namespace shion
 
 namespace B12
 {
-	template <string_literal APIName, string_literal URL_>
+  template <shion::basic_string_literal APIName, shion::basic_string_literal URL_>
 		requires (!shion::ends_with(APIName, '/') && !shion::ends_with(APIName, '\\'))
 	struct API
 	{
@@ -29,13 +29,13 @@ namespace B12
 		template <typename T, bool CanUseName>
 		struct Endpoint;
 		
-		template <string_literal Name, typename ID, bool CanUseName>
+	  template <shion::basic_string_literal Name, typename ID, bool CanUseName>
 			requires (!shion::ends_with(Name, '/') && !shion::ends_with(Name, '\\'))
 		struct Endpoint<APIResource<Name, ID>, CanUseName>
 		{
 			static constexpr inline auto NAME = Name;
 			static constexpr inline auto PATH = shion::literal_concat(API::NAME, "/", NAME);
-			using API = API;
+			using API_t = API;
 
 			using Resource = APIResource<Name, ID>;
 			

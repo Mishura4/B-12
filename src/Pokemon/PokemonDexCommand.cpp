@@ -53,7 +53,7 @@ CommandResponse CommandHandler::command<"pokemon dex">(
 	
 	dpp::message foo;
 	dpp::embed embed;
-	const nlohmann::json &json = wee->json;
+	const nlohmann::json &json = wee->resource;
 	auto name = std::string{json["name"]};
 	auto sprites = json["sprites"];
 
@@ -61,7 +61,7 @@ CommandResponse CommandHandler::command<"pokemon dex">(
 	embed.set_image(json["sprites"]["other"]["official-artwork"]["front_default"]);
 	embed.set_url(fmt::format("https://bulbapedia.bulbagarden.net/wiki/{}_(Pok%C3%A9mon)", name));
 	embed.set_title(name);
-	std::string generation = species->json["generation"]["name"];
+	std::string generation = species->resource["generation"]["name"];
 	to_upper(generation[0]);
 	for (char &c : generation | std::views::drop_while([](char c){return (c != '-');}) | std::views::drop(1))
 		to_upper(c);

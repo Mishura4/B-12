@@ -1,6 +1,7 @@
 #include "Core/Bot.h"
 
 #include "Command.h"
+#include "CommandResponse.h"
 #include "../Data/Lang.h"
 
 #include <CImg.h>
@@ -8,6 +9,10 @@
 #include <nonstd/expected.hpp>
 
 #include "CommandHandler.h"
+
+#ifdef Success
+#undef Success
+#endif
 
 using namespace B12;
 
@@ -233,7 +238,7 @@ CommandResponse CommandHandler::command<"server sticker grab">(
 	if (message->stickers.empty())
 		return {CommandResponse::UsageError{}, {{"Error: message does not have stickers!"}}};
 
-	CommandResponse ret{CommandResponse::Success{}};
+	CommandResponse ret = {CommandResponse::Success{}};
 
 	_source.sendThink(false);
 	for (const dpp::sticker& s : message->stickers)
