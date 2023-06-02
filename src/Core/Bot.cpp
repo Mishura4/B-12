@@ -272,6 +272,55 @@ int Bot::run()
 				guild->handleButtonClick(e);
 			}
 		);
+#ifdef B12_DEBUG
+/*		_bot->on_message_create.co_attach(
+			[this](const dpp::message_create_t& e) -> dpp::coroutine<void>
+			{
+				if (e.msg.author == e.from->creator->me.id)
+					co_return;
+				if (auto debug_channel_json = _config.find("debug_channel"); debug_channel_json != _config.end())
+				{
+					if (debug_channel_json->is_string())
+					{
+						auto&  as_str = debug_channel_json->get_ref<const std::string&>();
+						uint64 id     = stoull(as_str); // TODO: ERROR HANDLING
+
+						co_return;
+					}
+				}
+				auto *cluster = &Bot::bot();
+				auto test = [](dpp::cluster *cluster, dpp::message event) -> dpp::coroutine<void> {
+					dpp::confirmation_callback_t confirm = co_await cluster->co_message_create(dpp::message{"Retrieving emoji list"}.set_channel_id(event.channel_id));
+
+					if (confirm.is_error())
+						co_return;
+
+					dpp::message original = confirm.get<dpp::message>();
+
+					confirm = co_await cluster->co_guild_emojis_get(event.guild_id);
+					if (confirm.is_error())
+						co_return;
+					auto get_next_emoji = [](dpp::cluster *cluster, dpp::snowflake guild_id, dpp::emoji_map emojis) -> dpp::coroutine<std::optional<dpp::emoji>> {
+						B12::log(LogLevel::BASIC, fmt::format("{} emojis", emojis.size()));
+						for (auto it : emojis) {
+							co_yield {it.second};
+						}
+						co_return {std::nullopt};
+					}(cluster, event.guild_id, confirm.get<dpp::emoji_map>());
+
+					int i = 0;
+					while (i < 10 && !get_next_emoji.done()) {
+						auto emoji = get_next_emoji();
+						if (emoji) {
+							co_await cluster->co_message_create(dpp::message{emoji->get_mention()}.set_channel_id(event.channel_id));
+						}
+						++i;
+					}
+				};
+				co_await test(cluster, e.msg);
+			}
+		);*/
+#endif
 
 		log(LogLevel::BASIC, "Starting bot cluster...");
 		_bot->start(dpp::start_type::st_return);

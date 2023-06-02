@@ -11,6 +11,26 @@
 
 using namespace B12;
 
+constexpr auto is_utf8_head = [](char c) constexpr
+{
+	return ((c & 0b11111000) == 0b11110000);
+};
+constexpr auto is_utf8_tail = [](char c) constexpr
+{
+	return ((c & 0b11000000) == 0b10000000);
+};
+constexpr auto is_utf8_emoji_maybe = [](auto begin, auto end) constexpr {
+	auto it = begin;
+
+	return (
+		is_utf8_head(*it) &&
+		std::distance(begin, end) >= 4 &&
+		is_utf8_tail(*(++it)) &&
+		is_utf8_tail(*(++it)) &&
+		is_utf8_tail(*(++it))
+	);
+};
+
 // proof of concept for webhook messages
 /* Guild *guild = Bot::fetchGuild(interaction.guild_id);
 
@@ -67,51 +87,55 @@ CommandResponse CommandHandler::command<"meow">(
 	{ std::string{INTRO_URL} };
 
 	_source.sendThink(false);
-	/*auto test = [&]() -> dpp::task {
-		auto channel_id = std::get<0>(this->_source.source).event.command.channel_id;
-		auto guild_id = std::get<0>(this->_source.source).event.command.guild_id;
-		dpp::confirmation_callback_t confirm;
-		std::optional<dpp::thread> threads[3];
+	auto *cluster = &Bot::bot();
+	auto test = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::coroutine<bool> {
+		auto channel_id = command.channel_id;
+		auto guild_id = command.guild_id;
 
-		for (int i = 0; i < 3; ++i)
+		auto nested = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::coroutine<std::optional<dpp::message>> {
+			auto get_nickname = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::coroutine<std::optional<std::string>> {
+				B12::log(LogLevel::BASIC, "get nickname");
+				dpp::confirmation_callback_t c = co_await cluster->co_guild_get_member(command.guild_id, command.get_issuing_user().id);
+				if (c.is_error())
+					co_return {std::nullopt};
+				auto member = c.get<dpp::guild_member>();
+				B12::log(LogLevel::BASIC, "member {}", member.nickname);
+				co_return {member.nickname};
+			};
+			dpp::message m = dpp::message{"testlol"}.set_channel_id(command.channel_id);
+			dpp::coroutine nickname_coro = get_nickname(cluster, command);
+
+			dpp::confirmation_callback_t c = co_await cluster->co_message_create(m);
+			if (c.is_error())
+				co_return {std::nullopt};
+			m = c.get<dpp::message>();
+			if (c.is_error())
+				co_return {std::nullopt};
+			std::optional<std::string> nickname = co_await nickname_coro;
+
+			m.content = fmt::format("{} oh hi {}", m.content, *nickname);
+			c = co_await cluster->co_message_edit(m);
+			co_return {m};
+		};
+
+		dpp::coroutine<std::optional<dpp::message>> tasks[3];
+
+		for (auto &task : tasks)
+			task = nested(cluster, command);
+		for (auto &task : tasks)
 		{
-			confirm = co_await Bot::bot().co_thread_create(fmt::format("test {}", i), channel_id, 60, dpp::CHANNEL_PUBLIC_THREAD, false, 60);
-			if (confirm.is_error())
+			auto result = co_await task;
+			if (!result.has_value())
+				co_return false;
+			co_await [](dpp::cluster *cluster, dpp::message m) -> dpp::coroutine<void>
 			{
-				co_await Bot::bot().co_message_create(dpp::message{"failed to create thread"}.set_channel_id(channel_id));
-			}
+				co_await cluster->co_message_add_reaction(m, std::string{lang::SUCCESS_EMOJI});
+			}(cluster, *result);
 		}
-
-		confirm = co_await Bot::bot().co_threads_get_active(guild_id);
-
-		if (confirm.is_error())
-		{
-			co_await Bot::bot().co_message_create(dpp::message{"failed to get threads"}.set_channel_id(channel_id));
-		}
-		else
-		{
-			const auto &active_threads = confirm.get<dpp::active_threads>();
-
-			for (const auto &threads : active_threads)
-			{
-				const auto &active_thread = threads.second;
-
-				if (active_thread.active_thread.parent_id == channel_id)
-				{
-					confirm = co_await Bot::bot().co_message_create(dpp::message{fmt::format("found thread : {}", active_thread.active_thread.name)}.set_channel_id(channel_id));
-					if (active_thread.bot_member || !(co_await Bot::bot().co_current_user_join_thread(active_thread.active_thread.id)).is_error())
-					{
-						co_await Bot::bot().co_message_create(dpp::message("hello").set_channel_id(active_thread.active_thread.id));
-					}
-					confirm = co_await Bot::bot().co_channel_delete(active_thread.active_thread.id);
-				}
-			}
-		}
+		co_return true;
 	};
-
-	auto task = test();*/
-	
-	return {CommandResponse::Success{}, response};
+	auto task = test(cluster, std::get<0>(this->_source.source).event.command);
+	return {CommandResponse::Success{}, dpp::message{"meow acknowledged <:hewwo:846148573782999111>"}};
 }
 
 template <>
@@ -155,137 +179,168 @@ CommandResponse CommandHandler::command<"poll">(
 		"\x37\xef\xb8\x8f\xe2\x83\xa3",
 		"\x38\xef\xb8\x8f\xe2\x83\xa3"
 	};
-	auto respond = [&]() -> dpp::task
+	using choice = std::pair<std::optional<std::string>, std::string>;
+	std::vector<std::optional<choice>> choices;
+	std::optional<dpp::snowflake> role_id;
+	bool create_thread = false;
+	bool limit_1 = false;
+	std::string title;
+
+	choices.resize(8);
+	for (const auto &opt : options)
 	{
-		auto event = std::get<0>(_source.source).event;
-
-		using choice = std::pair<std::optional<std::string>, std::string>;
-
-		std::vector<std::optional<choice>> choices;
-		std::optional<dpp::role> role_ping;
-		bool create_thread = false;
-		bool limit_1 = false;
-		std::string title;
-		auto cluster = event.from->creator;
-		auto event_ = event;
-		dpp::confirmation_callback_t confirm;
-
-		choices.resize(8);
-		for (const auto &opt : options)
+		constexpr auto choice_start = std::string_view("choice-");
+		switch (opt.type)
 		{
-			constexpr auto choice_start = std::string_view("choice-");
-			switch (opt.type)
+			case dpp::co_string:
 			{
-				case dpp::co_string:
+				if (opt.name.starts_with(choice_start))
 				{
-					if (opt.name.starts_with(choice_start))
+					if (auto choice_id = std::stoi(opt.name.substr(choice_start.size())); choice_id > 0 && choice_id < 9)
 					{
-						if (auto choice_id = std::stoi(opt.name.substr(choice_start.size())); choice_id > 0 && choice_id < 9)
+						auto str_value = std::get<std::string>(opt.value);
+						--choice_id;
+						if (str_value.starts_with('<'))
 						{
-							auto str_value = std::get<std::string>(opt.value);
-							--choice_id;
-							if (auto separator = str_value.find(':'); separator != std::string::npos)
-							{
-								if (separator != 0 && str_value[separator-1] == '\\')
-									str_value.erase(separator-1, 1);
-								else
-									choices[choice_id] = choice{str_value.substr(0, separator), str_value.substr(separator+1)};
-							}
-							else
-							{
-								choices[choice_id] = choice{std::nullopt, str_value};
-							}
+							if (auto separator = str_value.find('>'); separator != std::string::npos)
+								choices[choice_id] = choice{str_value.substr(1, separator-1), str_value.substr(separator+1)};
 						}
-					}
-					else if (opt.name == "title")
-						title = std::get<std::string>(opt.value);
-				}
-				break;
+						else if (str_value.starts_with('\\'))
+							str_value.erase(str_value.begin());
+						else if (auto it = str_value.begin(); is_utf8_emoji_maybe(it, str_value.end()))
+						{
+							do { it += 4; }
+							while (is_utf8_emoji_maybe(it, str_value.end()));
 
-				case dpp::co_role:
-				{
-					if (opt.name == "ping-role")
-					{
-						dpp::snowflake role_id = std::get<dpp::snowflake>(opt.value);
+							std::string emoji{str_value.begin(), it};
 
-						if (auto *cached_role = dpp::find_role(role_id); cached_role != nullptr)
-							role_ping = *cached_role;
-						else
-						{
-							confirm = co_await cluster->co_roles_get(event.command.guild_id);
-							const auto &role_map = confirm.get<dpp::role_map>();
-							if (auto it = role_map.find(role_id); it != role_map.end())
-								role_ping = it->second;
+							choices[choice_id] = choice{emoji, str_value.substr(emoji.length())};
 						}
-						if (!role_ping.has_value() || (role_ping->is_mentionable() && !(event.command.get_resolved_permission(event.command.get_issuing_user().id) & (dpp::p_administrator | dpp::p_mention_everyone))))
-						{
-							event.reply(dpp::message{"You do not have permissions to mention this role."}.set_flags(dpp::m_ephemeral));
-							co_return;
-						}
+						if (!choices[choice_id].has_value())
+							choices[choice_id] = choice{std::nullopt, str_value};
 					}
 				}
-				break;
+				else if (opt.name == "title")
+					title = std::get<std::string>(opt.value);
+			}
+			break;
 
-				case dpp::co_boolean:
+			case dpp::co_role:
+			{
+				if (opt.name == "ping-role")
 				{
-					if (opt.name == "create-thread")
-						create_thread = std::get<bool>(opt.value);
+					role_id = std::get<dpp::snowflake>(opt.value);
 				}
 			}
+			break;
+
+			case dpp::co_boolean:
+			{
+				if (opt.name == "create-thread")
+					create_thread = std::get<bool>(opt.value);
+			}
 		}
-		confirm = co_await cluster->co_interaction_response_create(event_.command.id, event_.command.token, dpp::interaction_response{dpp::ir_deferred_channel_message_with_source});
+	}
+
+	auto respond = [](
+		dpp::cluster *cluster,
+		dpp::interaction_create_t event,
+		std::string title,
+		std::vector<std::optional<choice>> choices,
+		bool create_thread,
+		bool limit_1,
+		std::optional<dpp::snowflake> ping_role_id
+	) -> dpp::coroutine<void>
+	{
+		std::optional<dpp::role> role_ping;
+		dpp::confirmation_callback_t confirm;
+		
+		confirm = co_await cluster->co_interaction_response_create(event.command.id, event.command.token, dpp::interaction_response{dpp::ir_deferred_channel_message_with_source});
 		if (confirm.is_error())
 			co_return;
-		confirm = co_await cluster->co_interaction_followup_get_original(event_.command.token);
+		if (ping_role_id.has_value())
+		{
+			if (auto *cached_role = dpp::find_role(*ping_role_id); cached_role != nullptr)
+				role_ping = *cached_role;
+			else
+			{
+				confirm = co_await cluster->co_roles_get(event.command.guild_id);
+				const auto &role_map = confirm.get<dpp::role_map>();
+				if (auto it = role_map.find(*ping_role_id); it != role_map.end())
+					role_ping = it->second;
+			}
+			if (!role_ping.has_value() || (role_ping->is_mentionable() && !(event.command.get_resolved_permission(event.command.get_issuing_user().id) & (dpp::p_administrator | dpp::p_mention_everyone))))
+			{
+				cluster->co_interaction_response_edit(event.command.token, dpp::message{"You do not have permissions to mention this role."}.set_flags(dpp::m_ephemeral));
+				co_return;
+			}
+		}
+		confirm = co_await dpp::awaitable(cluster, [cluster, id = event.command.token](auto callback) { cluster->interaction_followup_get_original(id, callback); });
 		if (confirm.is_error())
 			co_return;
 		auto message = confirm.get<dpp::message>();
+
+		message.content = fmt::format("\xF0\x9F\x93\x8A {}", title);
 		int num = 0;
 		std::vector<std::string> lines;
+		dpp::coroutine<std::optional<std::string>> choice_coroutines[8];
+
 		for (auto i = 0; i < choices.size(); ++i)
 		{
 			if (const auto &c = choices[i]; c.has_value())
 			{
-				std::string emoji;
-				bool reacted = false;
-				if (c->first.has_value())
+				choice_coroutines[i] = [](dpp::cluster *cluster, dpp::snowflake message_id, dpp::snowflake channel_id, std::optional<choice> c, int num) -> dpp::coroutine<std::optional<std::string>>
 				{
-					emoji = *c->first;
-					confirm = co_await cluster->co_message_add_reaction(message.id, message.channel_id, emoji);
-					if (!confirm.is_error())
-						reacted = true;
-				}
-				if (!reacted)
-				{
-					emoji = numbers[num];
-					confirm = co_await cluster->co_message_add_reaction(message.id, message.channel_id, emoji);
-				}
-				if (confirm.is_error())
-				{
-					co_await cluster->co_interaction_response_edit(event.command.token, message.set_content("Failed to add a reaction."));
-					co_return;
-				}
-				auto skipped = c->second | std::ranges::views::drop_while([](char c){ return (c == ' ' || c == '\t'); });
-				lines.push_back(fmt::format("{} {}", emoji, std::string_view{skipped.begin(), skipped.end()}));
+					dpp::confirmation_callback_t confirm;
+					std::string emoji;
+					bool reacted = false;
+					if (c->first.has_value())
+					{
+						emoji = *c->first;
+						confirm = co_await cluster->co_message_add_reaction(message_id, channel_id, emoji);
+						if (!confirm.is_error())
+							reacted = true;
+					}
+					if (!reacted)
+					{
+						emoji = numbers[num];
+						confirm = co_await cluster->co_message_add_reaction(message_id, channel_id, emoji);
+					}
+					if (confirm.is_error())
+						co_return {};
+					co_return {emoji};
+				}(cluster, message.id, message.channel_id, std::move(c), num);
 				++num;
 			}
 		}
-		const auto &author = event_.command.get_issuing_user();
+		for (auto i = 0; i < choices.size(); ++i)
+		{
+			if (const auto &c = choices[i]; c.has_value())
+			{
+				auto emoji = co_await(choice_coroutines[i]);
+				if (!emoji.has_value())
+				{
+					cluster->interaction_response_edit(event.command.token, message.set_content("Failed to set up message reactions."));
+					co_return;
+				}
+				auto skipped = c->second | std::ranges::views::drop_while([](char c){ return (c == ' ' || c == '\t'); });
+				lines.push_back(fmt::format("{} {}", is_utf8_emoji_maybe(emoji->begin(), emoji->end()) ? *emoji : std::format("<{}>", *emoji), std::string_view{skipped.begin(), skipped.end()}));
+			}
+		}
+		const auto &author = event.command.get_issuing_user();
+
 		message.add_embed(
 			dpp::embed{}
 			.set_footer(fmt::format("{}#{}", author.username, author.discriminator), "")
 			.set_description(fmt::format("{}", fmt::join(lines, "\n")))
 		);
-		message.content = fmt::format("\xF0\x9F\x93\x8A {}", title);
-		cluster->interaction_response_edit(event_.command.token, message, [cluster, channel_id = event_.command.channel_id](const dpp::confirmation_callback_t &confirmation)
-		{
-			if (confirmation.is_error())
-				cluster->message_create(dpp::message{"Fatal error : could not edit message"}.set_channel_id(channel_id));
-		});
+		confirm = co_await cluster->co_interaction_response_edit(event.command.token, message);
+		if (confirm.is_error())
+			cluster->interaction_response_edit(event.command.token, message.set_content("Failed to set up message."));
 		if (create_thread)
 		{
 			cluster->thread_create_with_message(title, message.channel_id, message.id, 60, 0,
-				[cluster, role_ping, channel_id = event_.command.channel_id, author = event_.command.usr, author_member = event_.command.member](const dpp::confirmation_callback_t &confirmation)
+				[cluster, role_ping, channel_id = event.command.channel_id, author = event.command.usr, author_member = event.command.member](const dpp::confirmation_callback_t &confirmation)
 				{
 					if (confirmation.is_error())
 					{
@@ -307,6 +362,6 @@ CommandResponse CommandHandler::command<"poll">(
 				});
 		}
 	};
-	auto coro = respond();
+	auto coro = respond(&Bot::bot(), std::get<0>(_source.source).event, std::move(title), std::move(choices), create_thread, limit_1, role_id);
 	return (CommandResponse{CommandResponse::None{}});
 }

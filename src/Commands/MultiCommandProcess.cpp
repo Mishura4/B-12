@@ -32,7 +32,7 @@ void MCP::callbackFn(const dpp::confirmation_callback_t& event)
 	if (std::holds_alternative<dpp::message>(event.value))
 	{
 		const auto&    myMessage = std::get<dpp::message>(event.value);
-		dpp::snowflake old_id    = (master ? master->id : dpp::snowflake_t<dpp::message>{0});
+		dpp::snowflake old_id    = (master ? master->id : dpp::snowflake{0});
 
 		master     = std::make_unique<dpp::message>(myMessage);
 		expiration = Bot::lastUpdate() + std::chrono::seconds();
