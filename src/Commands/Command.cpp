@@ -9,6 +9,8 @@
 
 #include "CommandHandler.h"
 
+#include "Coro_test.h"
+
 using namespace B12;
 
 constexpr auto is_utf8_head = [](char c) constexpr
@@ -31,49 +33,6 @@ constexpr auto is_utf8_emoji_maybe = [](auto begin, auto end) constexpr {
 	);
 };
 
-// proof of concept for webhook messages
-/* Guild *guild = Bot::fetchGuild(interaction.guild_id);
-
-  dpp::message test{"test"};
-  dpp::user author   = interaction.get_issuing_user();
-  std::string name =
-	test.member.nickname.empty() ? author.username : test.member.nickname;
-  std::string avatar = test.member.get_avatar_url();
-
-  if (avatar.empty())
-	avatar = author.get_avatar_url();
-  test.member = interaction.member;
-  test.author = Bot::bot().me;
-  test.set_channel_id(interaction.channel_id);
-  test.set_guild_id(interaction.guild_id);
-  Bot::bot().get_webhook(
-	1082795079166599228,
-	[=](const dpp::confirmation_callback_t &confirm) {
-	  auto hook = std::get<dpp::webhook>(confirm.value);
-
-	  hook.name   = std::format("{} (@{})", name, guild->dppGuild().name);
-	  hook.avatar = avatar;
-	  Bot::bot().execute_webhook(hook, test);
-	}
-  );*/
-
-struct promise;
-
-struct test_coroutine : std::coroutine_handle<promise>
-{
-	using promise_type = ::promise;
-};
-
-struct promise
-{
-	test_coroutine get_return_object() { return {test_coroutine::from_promise(*this)}; }
-	
-    std::suspend_always initial_suspend() noexcept { return {}; }
-    std::suspend_always final_suspend() noexcept { return {}; }
-    void return_void() {}
-    void unhandled_exception() {}
-};
-
 template <>
 CommandResponse CommandHandler::command<"meow">(
 	command_option_view /*options*/
@@ -88,14 +47,15 @@ CommandResponse CommandHandler::command<"meow">(
 
 	_source.sendThink(false);
 	auto *cluster = &Bot::bot();
-	auto test = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::coroutine<bool> {
+	auto test = [](dpp::cluster *cluster, dpp::interaction command) -> ::co_task<bool> {
 		auto channel_id = command.channel_id;
 		auto guild_id = command.guild_id;
 
-		auto nested = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::coroutine<std::optional<dpp::message>> {
-			auto get_nickname = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::coroutine<std::optional<std::string>> {
+		auto nested = [](dpp::cluster *cluster, dpp::interaction command) -> ::co_task<std::optional<dpp::message>> {
+			auto get_nickname = [](dpp::cluster *cluster, dpp::interaction command) -> ::co_task<std::optional<std::string>> {
 				B12::log(LogLevel::BASIC, "get nickname");
 				dpp::confirmation_callback_t c = co_await cluster->co_guild_get_member(command.guild_id, command.get_issuing_user().id);
+				B12::log(LogLevel::BASIC, "got");
 				if (c.is_error())
 					co_return {std::nullopt};
 				auto member = c.get<dpp::guild_member>();
@@ -103,38 +63,45 @@ CommandResponse CommandHandler::command<"meow">(
 				co_return {member.nickname};
 			};
 			dpp::message m = dpp::message{"testlol"}.set_channel_id(command.channel_id);
-			dpp::coroutine nickname_coro = get_nickname(cluster, command);
-
+			::co_task nickname_coro = get_nickname(cluster, command);
+			
+				B12::log(LogLevel::BASIC, "after get nickname");
 			dpp::confirmation_callback_t c = co_await cluster->co_message_create(m);
+				B12::log(LogLevel::BASIC, "after message_create");
 			if (c.is_error())
 				co_return {std::nullopt};
 			m = c.get<dpp::message>();
 			if (c.is_error())
 				co_return {std::nullopt};
+				B12::log(LogLevel::BASIC, "co_await nickname_coro");
 			std::optional<std::string> nickname = co_await nickname_coro;
 
 			m.content = fmt::format("{} oh hi {}", m.content, *nickname);
+			B12::log(LogLevel::BASIC, "editing");
 			c = co_await cluster->co_message_edit(m);
+			B12::log(LogLevel::BASIC, "edited");
 			co_return {m};
 		};
 
-		dpp::coroutine<std::optional<dpp::message>> tasks[3];
+		::co_task<std::optional<dpp::message>> tasks[3];
 
 		for (auto &task : tasks)
+		{
 			task = nested(cluster, command);
+		}
 		for (auto &task : tasks)
 		{
 			auto result = co_await task;
+			B12::log(LogLevel::BASIC, "result : {}", result.has_value());
 			if (!result.has_value())
 				co_return false;
-			co_await [](dpp::cluster *cluster, dpp::message m) -> dpp::coroutine<void>
-			{
-				co_await cluster->co_message_add_reaction(m, std::string{lang::SUCCESS_EMOJI});
-			}(cluster, *result);
+			co_await cluster->co_message_add_reaction(*result, std::string{lang::SUCCESS_EMOJI});
 		}
 		co_return true;
 	};
-	auto task = test(cluster, std::get<0>(this->_source.source).event.command);
+	auto task = new co_task<bool>(std::move(test(cluster, std::get<0>(this->_source.source).event.command)));
+	B12::log(LogLevel::BASIC, "boom");
+	std::cout << "boom" << std::endl;
 	return {CommandResponse::Success{}, dpp::message{"meow acknowledged <:hewwo:846148573782999111>"}};
 }
 
@@ -250,7 +217,7 @@ CommandResponse CommandHandler::command<"poll">(
 		bool create_thread,
 		bool limit_1,
 		std::optional<dpp::snowflake> ping_role_id
-	) -> dpp::coroutine<void>
+	) -> ::co_task<void>
 	{
 		std::optional<dpp::role> role_ping;
 		dpp::confirmation_callback_t confirm;
@@ -275,7 +242,7 @@ CommandResponse CommandHandler::command<"poll">(
 				co_return;
 			}
 		}
-		confirm = co_await dpp::awaitable(cluster, [cluster, id = event.command.token](auto callback) { cluster->interaction_followup_get_original(id, callback); });
+		confirm = co_await dpp::awaitable(cluster, &dpp::cluster::interaction_followup_get_original, event.command.token);
 		if (confirm.is_error())
 			co_return;
 		auto message = confirm.get<dpp::message>();
@@ -283,13 +250,14 @@ CommandResponse CommandHandler::command<"poll">(
 		message.content = fmt::format("\xF0\x9F\x93\x8A {}", title);
 		int num = 0;
 		std::vector<std::string> lines;
-		dpp::coroutine<std::optional<std::string>> choice_coroutines[8];
+		::co_task<std::optional<std::string>> choice_coroutines[8];
 
 		for (auto i = 0; i < choices.size(); ++i)
 		{
 			if (const auto &c = choices[i]; c.has_value())
 			{
-				choice_coroutines[i] = [](dpp::cluster *cluster, dpp::snowflake message_id, dpp::snowflake channel_id, std::optional<choice> c, int num) -> dpp::coroutine<std::optional<std::string>>
+				std::cout << "hi" << std::endl;
+				choice_coroutines[i] = [](dpp::cluster *cluster, dpp::snowflake message_id, dpp::snowflake channel_id, std::optional<choice> c, int num) -> ::co_task<std::optional<std::string>>
 				{
 					dpp::confirmation_callback_t confirm;
 					std::string emoji;
@@ -309,7 +277,7 @@ CommandResponse CommandHandler::command<"poll">(
 					if (confirm.is_error())
 						co_return {};
 					co_return {emoji};
-				}(cluster, message.id, message.channel_id, std::move(c), num);
+				}(cluster, message.id, message.channel_id, c, num);
 				++num;
 			}
 		}
@@ -317,6 +285,7 @@ CommandResponse CommandHandler::command<"poll">(
 		{
 			if (const auto &c = choices[i]; c.has_value())
 			{
+				std::cout << "choice " << i << std::endl;
 				auto emoji = co_await(choice_coroutines[i]);
 				if (!emoji.has_value())
 				{
@@ -334,6 +303,7 @@ CommandResponse CommandHandler::command<"poll">(
 			.set_footer(fmt::format("{}#{}", author.username, author.discriminator), "")
 			.set_description(fmt::format("{}", fmt::join(lines, "\n")))
 		);
+		std::cout << "edit " << std::endl;
 		confirm = co_await cluster->co_interaction_response_edit(event.command.token, message);
 		if (confirm.is_error())
 			cluster->interaction_response_edit(event.command.token, message.set_content("Failed to set up message."));

@@ -273,8 +273,8 @@ int Bot::run()
 			}
 		);
 #ifdef B12_DEBUG
-/*		_bot->on_message_create.co_attach(
-			[this](const dpp::message_create_t& e) -> dpp::coroutine<void>
+		_bot->on_message_create.co_attach(
+			[this](const dpp::message_create_t& e) -> dpp::co_task<void>
 			{
 				if (e.msg.author == e.from->creator->me.id)
 					co_return;
@@ -289,37 +289,56 @@ int Bot::run()
 					}
 				}
 				auto *cluster = &Bot::bot();
-				auto test = [](dpp::cluster *cluster, dpp::message event) -> dpp::coroutine<void> {
+				auto test = [](dpp::cluster *cluster, dpp::message event) -> dpp::co_task<void> {
 					dpp::confirmation_callback_t confirm = co_await cluster->co_message_create(dpp::message{"Retrieving emoji list"}.set_channel_id(event.channel_id));
 
-					if (confirm.is_error())
-						co_return;
-
 					dpp::message original = confirm.get<dpp::message>();
+					/*
+					auto get_next_emoji = [](dpp::cluster *cluster, dpp::snowflake guild_id) -> dpp::coroutine<std::optional<dpp::emoji>> {
+						dpp::confirmation_callback_t confirm;
 
-					confirm = co_await cluster->co_guild_emojis_get(event.guild_id);
-					if (confirm.is_error())
-						co_return;
-					auto get_next_emoji = [](dpp::cluster *cluster, dpp::snowflake guild_id, dpp::emoji_map emojis) -> dpp::coroutine<std::optional<dpp::emoji>> {
+						confirm = co_await cluster->co_guild_emojis_get(guild_id);
+						if (confirm.is_error())
+							co_return {std::nullopt};
+						auto emojis = confirm.get<dpp::emoji_map>();
 						B12::log(LogLevel::BASIC, fmt::format("{} emojis", emojis.size()));
 						for (auto it : emojis) {
 							co_yield {it.second};
 						}
 						co_return {std::nullopt};
-					}(cluster, event.guild_id, confirm.get<dpp::emoji_map>());
+					}(cluster, event.guild_id);
 
 					int i = 0;
 					while (i < 10 && !get_next_emoji.done()) {
-						auto emoji = get_next_emoji();
+						auto emoji = co_await get_next_emoji;
 						if (emoji) {
 							co_await cluster->co_message_create(dpp::message{emoji->get_mention()}.set_channel_id(event.channel_id));
 						}
 						++i;
+					}*/
+					
+					confirm = co_await cluster->co_guild_emojis_get(event.guild_id);
+
+					const auto &map = confirm.get<dpp::emoji_map>();
+
+					int i = 0;
+					for (auto it = map.begin(); it != map.end() && i < 5; ++i)
+					{
+						dpp::message message{};
+					
+						message = fmt::format("{}",
+							fmt::join(
+								std::ranges::views::iota(it, map.end())
+								| std::ranges::views::transform([](auto &&elem){ return (elem->second.get_mention()); })
+								| std::ranges::views::take(10),
+							" "));
+						co_await cluster->co_message_create(message.set_channel_id(event.channel_id));
+						std::ranges::advance(it, 10, map.end());
 					}
 				};
 				co_await test(cluster, e.msg);
 			}
-		);*/
+		);
 #endif
 
 		log(LogLevel::BASIC, "Starting bot cluster...");

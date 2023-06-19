@@ -4,6 +4,7 @@ if ((${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" AND "x${CMAKE_CXX_SIMULATE_ID}" S
 endif()
 
 set(DPP_CORO ON)
+set(DPP_USE_PCH ON)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/fmt)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/boost_pfr)
@@ -24,8 +25,6 @@ if(WIN32 AND NOT MINGW)
 		configure_file("${CMAKE_CURRENT_LIST_DIR}/DPP/win32/bin/libssl-1_1-x64.dll" "${CMAKE_BINARY_DIR}" COPYONLY)
 		configure_file("${CMAKE_CURRENT_LIST_DIR}/DPP/win32/bin/libsodium.dll" "${CMAKE_BINARY_DIR}" COPYONLY)
 		configure_file("${CMAKE_CURRENT_LIST_DIR}/DPP/win32/bin/opus.dll" "${CMAKE_BINARY_DIR}" COPYONLY)
-
-		message(warning, ${B12_RUNTIME_OUTPUT_DIRECTORY} ${CMAKE_BINARY_DIR})
 	else()
 		configure_file("${CMAKE_CURRENT_LIST_DIR}/DPP/win32/32/bin/zlib1.dll" "${CMAKE_BINARY_DIR}" COPYONLY)
 		configure_file("${CMAKE_CURRENT_LIST_DIR}/DPP/win32/32/bin/libcrypto-1_1.dll" "${CMAKE_BINARY_DIR}" COPYONLY)
