@@ -285,7 +285,8 @@ int Bot::run()
 						auto&  as_str = debug_channel_json->get_ref<const std::string&>();
 						uint64 id     = stoull(as_str); // TODO: ERROR HANDLING
 
-						co_return;
+						if (id != e.msg.channel_id)
+							co_return;
 					}
 				}
 				auto *cluster = &Bot::bot();

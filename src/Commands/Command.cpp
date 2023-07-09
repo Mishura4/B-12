@@ -47,12 +47,12 @@ CommandResponse CommandHandler::command<"meow">(
 
 	_source.sendThink(false);
 	auto *cluster = &Bot::bot();
-	auto test = [](dpp::cluster *cluster, dpp::interaction command) -> ::co_task<bool> {
+	auto test = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::co_task<bool> {
 		auto channel_id = command.channel_id;
 		auto guild_id = command.guild_id;
 
-		auto nested = [](dpp::cluster *cluster, dpp::interaction command) -> ::co_task<std::optional<dpp::message>> {
-			auto get_nickname = [](dpp::cluster *cluster, dpp::interaction command) -> ::co_task<std::optional<std::string>> {
+		auto nested = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::co_task<std::optional<dpp::message>> {
+			auto get_nickname = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::co_task<std::optional<std::string>> {
 				B12::log(LogLevel::BASIC, "get nickname");
 				dpp::confirmation_callback_t c = co_await cluster->co_guild_get_member(command.guild_id, command.get_issuing_user().id);
 				B12::log(LogLevel::BASIC, "got");
@@ -63,7 +63,7 @@ CommandResponse CommandHandler::command<"meow">(
 				co_return {member.nickname};
 			};
 			dpp::message m = dpp::message{"testlol"}.set_channel_id(command.channel_id);
-			::co_task nickname_coro = get_nickname(cluster, command);
+			dpp::co_task nickname_coro = get_nickname(cluster, command);
 			
 				B12::log(LogLevel::BASIC, "after get nickname");
 			dpp::confirmation_callback_t c = co_await cluster->co_message_create(m);
@@ -83,7 +83,7 @@ CommandResponse CommandHandler::command<"meow">(
 			co_return {m};
 		};
 
-		::co_task<std::optional<dpp::message>> tasks[3];
+		dpp::co_task<std::optional<dpp::message>> tasks[3];
 
 		for (auto &task : tasks)
 		{
@@ -99,7 +99,7 @@ CommandResponse CommandHandler::command<"meow">(
 		}
 		co_return true;
 	};
-	auto task = new co_task<bool>(std::move(test(cluster, std::get<0>(this->_source.source).event.command)));
+	auto task = new dpp::co_task<bool>(std::move(test(cluster, std::get<0>(this->_source.source).event.command)));
 	B12::log(LogLevel::BASIC, "boom");
 	std::cout << "boom" << std::endl;
 	return {CommandResponse::Success{}, dpp::message{"meow acknowledged <:hewwo:846148573782999111>"}};
@@ -217,7 +217,7 @@ CommandResponse CommandHandler::command<"poll">(
 		bool create_thread,
 		bool limit_1,
 		std::optional<dpp::snowflake> ping_role_id
-	) -> ::co_task<void>
+	) -> dpp::co_task<void>
 	{
 		std::optional<dpp::role> role_ping;
 		dpp::confirmation_callback_t confirm;
@@ -250,14 +250,14 @@ CommandResponse CommandHandler::command<"poll">(
 		message.content = fmt::format("\xF0\x9F\x93\x8A {}", title);
 		int num = 0;
 		std::vector<std::string> lines;
-		::co_task<std::optional<std::string>> choice_coroutines[8];
+		dpp::co_task<std::optional<std::string>> choice_coroutines[8];
 
 		for (auto i = 0; i < choices.size(); ++i)
 		{
 			if (const auto &c = choices[i]; c.has_value())
 			{
 				std::cout << "hi" << std::endl;
-				choice_coroutines[i] = [](dpp::cluster *cluster, dpp::snowflake message_id, dpp::snowflake channel_id, std::optional<choice> c, int num) -> ::co_task<std::optional<std::string>>
+				choice_coroutines[i] = [](dpp::cluster *cluster, dpp::snowflake message_id, dpp::snowflake channel_id, std::optional<choice> c, int num) -> dpp::co_task<std::optional<std::string>>
 				{
 					dpp::confirmation_callback_t confirm;
 					std::string emoji;
@@ -293,7 +293,7 @@ CommandResponse CommandHandler::command<"poll">(
 					co_return;
 				}
 				auto skipped = c->second | std::ranges::views::drop_while([](char c){ return (c == ' ' || c == '\t'); });
-				lines.push_back(fmt::format("{} {}", is_utf8_emoji_maybe(emoji->begin(), emoji->end()) ? *emoji : std::format("<{}>", *emoji), std::string_view{skipped.begin(), skipped.end()}));
+				lines.push_back(fmt::format("{} {}", is_utf8_emoji_maybe(emoji->begin(), emoji->end()) ? *emoji : fmt::format("<{}>", *emoji), std::string_view{skipped.begin(), skipped.end()}));
 			}
 		}
 		const auto &author = event.command.get_issuing_user();
