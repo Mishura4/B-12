@@ -9,8 +9,6 @@
 
 #include "CommandHandler.h"
 
-#include "Coro_test.h"
-
 using namespace B12;
 
 constexpr auto is_utf8_head = [](char c) constexpr
