@@ -292,31 +292,7 @@ int Bot::run()
 				auto *cluster = &Bot::bot();
 				auto test = [](dpp::cluster *cluster, dpp::message event) -> dpp::co_task<void> {
 					dpp::confirmation_callback_t confirm = co_await cluster->co_message_create(dpp::message{"Retrieving emoji list"}.set_channel_id(event.channel_id));
-
 					dpp::message original = confirm.get<dpp::message>();
-					/*
-					auto get_next_emoji = [](dpp::cluster *cluster, dpp::snowflake guild_id) -> dpp::coroutine<std::optional<dpp::emoji>> {
-						dpp::confirmation_callback_t confirm;
-
-						confirm = co_await cluster->co_guild_emojis_get(guild_id);
-						if (confirm.is_error())
-							co_return {std::nullopt};
-						auto emojis = confirm.get<dpp::emoji_map>();
-						B12::log(LogLevel::BASIC, fmt::format("{} emojis", emojis.size()));
-						for (auto it : emojis) {
-							co_yield {it.second};
-						}
-						co_return {std::nullopt};
-					}(cluster, event.guild_id);
-
-					int i = 0;
-					while (i < 10 && !get_next_emoji.done()) {
-						auto emoji = co_await get_next_emoji;
-						if (emoji) {
-							co_await cluster->co_message_create(dpp::message{emoji->get_mention()}.set_channel_id(event.channel_id));
-						}
-						++i;
-					}*/
 					
 					confirm = co_await cluster->co_guild_emojis_get(event.guild_id);
 
