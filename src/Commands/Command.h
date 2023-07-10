@@ -71,7 +71,10 @@ namespace B12
 
 		template <typename T>
 		// because visual studio struggles with name resolution of template pack parameters
-		static constexpr auto command_option_name = T::NAME;
+		struct command_option_name_helper
+		{
+			static inline constexpr auto NAME = T::NAME;
+		};
 	}
 
 	template <typename T>
@@ -125,7 +128,7 @@ namespace B12
 			bot_permissions{bot_permissions_} {}
 
 		using option_list = shion::type_list<Options...>;
-		using option_names = shion::value_list<Options::NAME...>;
+		using option_names = shion::value_list<_::command_option_name_helper<Options>::NAME...>;
 
 		static constexpr auto name           = Name;
 		static constexpr auto handler        = Handler;

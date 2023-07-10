@@ -97,7 +97,7 @@ CommandResponse CommandHandler::command<"meow">(
 		}
 		co_return true;
 	};
-	auto task = new dpp::co_task<bool>(std::move(test(cluster, std::get<0>(this->_source.source).event.command)));
+	auto task = dpp::co_task<bool>(std::move(test(cluster, std::get<0>(this->_source.source).event.command)));
 	B12::log(LogLevel::BASIC, "boom");
 	std::cout << "boom" << std::endl;
 	return {CommandResponse::Success{}, dpp::message{"meow acknowledged <:hewwo:846148573782999111>"}};
@@ -240,7 +240,7 @@ CommandResponse CommandHandler::command<"poll">(
 				co_return;
 			}
 		}
-		confirm = co_await dpp::awaitable(cluster, &dpp::cluster::interaction_followup_get_original, event.command.token);
+		confirm = co_await dpp::awaitable(&event, &dpp::interaction_create_t::get_original_response);
 		if (confirm.is_error())
 			co_return;
 		auto message = confirm.get<dpp::message>();
