@@ -273,6 +273,7 @@ int Bot::run()
 			}
 		);
 #ifdef B12_DEBUG
+		/*
 		_bot->on_message_create.co_attach(
 			[this](const dpp::message_create_t& e) -> dpp::co_task<void>
 			{
@@ -315,7 +316,7 @@ int Bot::run()
 				};
 				co_await test(cluster, e.msg);
 			}
-		);
+		);*/
 #endif
 
 		log(LogLevel::BASIC, "Starting bot cluster...");
