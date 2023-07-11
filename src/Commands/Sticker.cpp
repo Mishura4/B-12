@@ -271,11 +271,11 @@ namespace {
 			}
 			if (resize_result == ImageProcessResult::RESIZED)
 				ret.content.append(" (note : the image was resized due to being too large)");
-			event.edit_original_response(ret, [](const dpp::confirmation_callback_t &c){
-				if (c.is_error())
-					B12::log(LogLevel::BASIC, "an error occured while trying to edit `server sticker grab` command response:\n{}", c.get_error().message);
-			});
 		}
+		event.edit_original_response(ret, [](const dpp::confirmation_callback_t &c){
+			if (c.is_error())
+				B12::log(LogLevel::BASIC, "an error occured while trying to edit `server sticker grab` command response:\n{}", c.get_error().message);
+		});
 	}
 }
 
