@@ -103,7 +103,7 @@ inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(
 		dpp::p_manage_emojis_and_stickers,
 		dpp::p_manage_emojis_and_stickers,
 		CommandOption<"message", 1>{"Message ID to grab from", true, dpp::co_string},
-		CommandOption<"channel", 1>{"Channel to grab from", false, dpp::co_mentionable}
+		CommandOption<"channel", 1>{"Channel to grab from", false, dpp::co_channel}
 	),
 	make_command<"ban">(
 		"Ban a user",

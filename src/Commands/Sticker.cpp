@@ -8,6 +8,10 @@
 #include <png.h>
 #include <nonstd/expected.hpp>
 
+#ifdef None // X11 included from CImg
+#undef None
+#endif
+
 #include "CommandHandler.h"
 
 #ifdef Success
@@ -285,7 +289,7 @@ CommandResponse CommandHandler::command<"server sticker grab">(
 
 	for (const dpp::command_data_option& opt : options)
 	{
-		if (opt.type == dpp::co_mentionable && opt.name == "channel")
+		if (opt.type == dpp::co_channel && opt.name == "channel")
 		{
 			channel_id = std::get<dpp::snowflake>(opt.value);
 		}

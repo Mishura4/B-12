@@ -84,11 +84,12 @@ Bot::Bot(const char* discord_token)
 	try
 	// we do this with try/catch as opposed to the iostream::fail API so we can have the error message
 	{
-		_logFile.exceptions(std::ios::failbit);
+
 		_logFile.open("latest.log", std::ios::out | std::ios::trunc);
+		_logFile.exceptions(std::ios::failbit);
 		_logFile.exceptions(std::ios::iostate{});
-		_debugLogFile.exceptions(std::ios::failbit);
 		_debugLogFile.open("debug.log", std::ios::out | std::ios::trunc);
+		_debugLogFile.exceptions(std::ios::failbit);
 		_debugLogFile.exceptions(std::ios::iostate{});
 	}
 	catch (const std::exception& e)
