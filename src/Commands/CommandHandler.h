@@ -30,13 +30,13 @@ namespace B12
 			invocable_r<Callable, CommandResponse, CommandHandler *, Args...>)
 		void exec(Callable &&callable, Args&&... args);
 
-		template <string_literal Command>
+		template <shion::basic_string_literal Command>
 		void exec(command_option_view options)
 		{
 			exec(&CommandHandler::command<Command>, options);
 		}
 
-		template <string_literal Command>
+		template <shion::basic_string_literal Command>
 		CommandResponse command(command_option_view options);
 
 	private:

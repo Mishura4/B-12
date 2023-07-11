@@ -236,7 +236,7 @@ CommandResponse CommandHandler::command<"poll">(
 			}
 			if (!role_ping.has_value() || (role_ping->is_mentionable() && !(event.command.get_resolved_permission(event.command.get_issuing_user().id) & (dpp::p_administrator | dpp::p_mention_everyone))))
 			{
-				cluster->co_interaction_response_edit(event.command.token, dpp::message{"You do not have permissions to mention this role."}.set_flags(dpp::m_ephemeral));
+				cluster->interaction_response_edit(event.command.token, dpp::message{"You do not have permissions to mention this role."}.set_flags(dpp::m_ephemeral));
 				co_return;
 			}
 		}

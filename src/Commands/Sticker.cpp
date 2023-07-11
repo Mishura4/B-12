@@ -40,39 +40,17 @@ namespace
 		return {std::nullopt};
 	};
 
-	std::optional<dpp::message> message_get(
-		dpp::snowflake message_id,
-		dpp::snowflake channel_id
-	)
+	auto sticker_get(dpp::cluster *cluster, dpp::snowflake id) -> dpp::co_task<std::optional<dpp::sticker>>
 	{
-		std::optional<dpp::message> message{std::nullopt};
+		auto confirm = co_await cluster->co_nitro_sticker_get(id);
 
-		auto                      message_getter = AsyncExecutor<dpp::message>(
-			[&](const dpp::message& m)
-			{
-				message = m;
-			}
-		);
-		message_getter(&dpp::cluster::message_get, &Bot::bot(), message_id, channel_id);
-		message_getter.wait();
-		return (message);
+		if (confirm.is_error())
+			co_return {std::nullopt};
+		else
+			co_return (confirm.get<dpp::sticker>());
 	}
 
-	auto sticker_get(dpp::snowflake id)
-	{
-		std::optional<dpp::sticker> ret;
-		auto                        sticker_retriever = AsyncExecutor<dpp::sticker>{
-			[&](const dpp::sticker&   s0)
-			{
-				ret = s0;
-			}
-		};
-
-		sticker_retriever(&dpp::cluster::nitro_sticker_get, &Bot::bot(), id).wait();
-		return (ret);
-	}
-
-	auto sticker_content_get(const dpp::sticker& sticker)
+	auto sticker_content_get(dpp::cluster *cluster, const dpp::sticker& sticker) -> dpp::co_task<std::optional<std::string>>
 	{
 		auto               content = std::optional<std::string>{std::nullopt};
 		auto               request =
@@ -90,29 +68,23 @@ namespace
 				}
 			};
 
-		content_retriever(request, &Bot::bot(), sticker.get_url());
-		content_retriever.wait();
-		return (content);
+		auto awaitable = cluster->co_request(sticker.get_url(), dpp::m_get);
+		auto result = co_await awaitable;
+
+		if (result.status >= 300)
+			co_return {std::nullopt};
+		else
+			co_return (result.body);
 	}
 
-	nonstd::expected<dpp::sticker, dpp::error_info> sticker_add(dpp::sticker& sticker)
+	auto sticker_add(dpp::cluster *cluster, dpp::sticker& sticker) -> dpp::co_task<nonstd::expected<dpp::sticker, dpp::error_info>>
 	{
-		auto ret      = nonstd::expected<dpp::sticker, dpp::error_info>{};
-		auto on_error = [&](const dpp::error_info& err)
-		{
-			ret = nonstd::make_unexpected(err);
-		};
-		auto                      executor = AsyncExecutor<dpp::sticker>{
-			[&](const dpp::sticker& result)
-			{
-				ret = result;
-			},
-			on_error
-		};
+		auto confirm = co_await cluster->co_guild_sticker_create(sticker);
 
-		executor(&dpp::cluster::guild_sticker_create, &Bot::bot(), sticker);
-		executor.wait();
-		return (ret);
+		if (confirm.is_error())
+			co_return nonstd::make_unexpected(confirm.get_error());
+		else
+			co_return {confirm.get<dpp::sticker>()};
 	}
 
 	void attachment_add(dpp::message& msg, const dpp::sticker& sticker, const std::string& content)
@@ -127,7 +99,6 @@ namespace
 		}
 		else
 			msg.add_file(sticker.name, content);
-		msg.set_file_content(content);
 	}
 
 	enum class ImageProcessResult
@@ -206,6 +177,104 @@ namespace
 	}
 }
 
+namespace {
+	auto sticker_grab_task(dpp::cluster *cluster, dpp::interaction_create_t event, dpp::snowflake message_id, dpp::snowflake channel_id) -> dpp::co_task<void>
+	{
+		dpp::confirmation_callback_t confirm = co_await dpp::awaitable(event, &dpp::interaction_create_t::thinking, false);
+
+		if (confirm.is_error())
+			co_return;
+
+		confirm = co_await dpp::awaitable{&event, &dpp::interaction_create_t::get_original_response};
+
+		if (confirm.is_error())
+			co_return;
+
+		dpp::message original_response = std::move(confirm.get<dpp::message>());
+
+		confirm = co_await B12::Bot::bot().co_message_get(message_id, channel_id);
+		if (confirm.is_error())
+		{
+			event.edit_original_response(original_response.set_content(fmt::format(
+				"{} Error: could not retrieve message\n(Common issues: wrong message or channel ID, or I do not have view permissions)",
+				lang::ERROR_EMOJI
+			)));
+			co_return;
+		}
+
+		dpp::message message = std::move(confirm.get<dpp::message>());
+		if (message.stickers.empty())
+		{
+			event.edit_original_response(original_response.set_content(fmt::format(
+				"{} Error: message does not have stickers!",
+				lang::ERROR_EMOJI
+			)));
+			co_return;
+		}
+
+		dpp::message ret;
+
+		for (const dpp::sticker& s : message.stickers)
+		{
+			auto content = co_await sticker_content_get(cluster, s);
+			if (!content)
+			{
+				ret.content.append(fmt::format("{} Could not download image data", lang::ERROR_EMOJI));
+				continue;
+			}
+			auto grabbed_sticker = co_await sticker_get(cluster, s.id);
+			if (!grabbed_sticker)
+			{
+				ret.content.append(fmt::format(
+					"{} Could not request sticker details, was it deleted? Adding image as attachment for manual addition.",
+					lang::ERROR_EMOJI
+				));
+				attachment_add(ret, s, *content);
+				continue;
+			}
+
+			dpp::sticker to_add;
+			auto         resize_result = image_process(content);
+
+			to_add.filecontent  = std::move(*content);
+			to_add.guild_id     = event.command.guild_id;
+			to_add.sticker_user = cluster->me;
+			to_add.name         = grabbed_sticker->name;
+			to_add.description  = grabbed_sticker->description;
+			to_add.filename     = to_add.name + ".png";
+			to_add.tags         = grabbed_sticker->tags;
+			to_add.type         = dpp::st_guild;
+			std::ranges::replace(to_add.filename, ' ', '_');
+
+			auto add_result = co_await sticker_add(cluster, to_add);
+			if (!add_result.has_value())
+			{
+				ret.content.append(fmt::format(
+					"{} Failed to add sticker `{}`: \"{}\"\nAdding image as attachment for manual addition",
+					lang::ERROR_EMOJI,
+					grabbed_sticker->name,
+					add_result.error().message
+				));
+				attachment_add(ret, s, to_add.filecontent);
+			}
+			else
+			{
+				ret.content.append(fmt::format(
+					"{} Added sticker \"{}\"!",
+					lang::SUCCESS_EMOJI,
+					grabbed_sticker->name
+				));
+			}
+			if (resize_result == ImageProcessResult::RESIZED)
+				ret.content.append(" (note : the image was resized due to being too large)");
+			event.edit_original_response(ret, [](const dpp::confirmation_callback_t &c){
+				if (c.is_error())
+					B12::log(LogLevel::BASIC, "an error occured while trying to edit `server sticker grab` command response:\n{}", c.get_error().message);
+			});
+		}
+	}
+}
+
 template <>
 CommandResponse CommandHandler::command<"server sticker grab">(
 	command_option_view options
@@ -228,72 +297,7 @@ CommandResponse CommandHandler::command<"server sticker grab">(
 	}
 	if (!message_id)
 		return {CommandResponse::UsageError{}, {{"Error: could not parse message id"}}};
-	auto message = message_get(message_id, channel_id);
 
-	if (!message)
-		return {
-			CommandResponse::UsageError{},
-			{{"Error: message not found (do I have view permissions in this channel?)"}}
-		};
-	if (message->stickers.empty())
-		return {CommandResponse::UsageError{}, {{"Error: message does not have stickers!"}}};
-
-	CommandResponse ret = {CommandResponse::Success{}};
-
-	_source.sendThink(false);
-	for (const dpp::sticker& s : message->stickers)
-	{
-		auto content = sticker_content_get(s);
-		if (!content)
-		{
-			ret.append("{} Could not download image data", lang::ERROR_EMOJI);
-			continue;
-		}
-		auto grabbed_sticker = sticker_get(s.id);
-		if (!grabbed_sticker)
-		{
-			ret.append(
-				"{} Could not request sticker details, was it deleted? Adding image as attachment for manual addition.",
-				lang::ERROR_EMOJI
-			);
-			attachment_add(ret.content.message, s, *content);
-			continue;
-		}
-
-		dpp::sticker to_add;
-		auto         resize_result = image_process(content);
-
-		to_add.filecontent  = std::move(*content);
-		to_add.guild_id     = _guild_id;
-		to_add.sticker_user = _cluster->me;
-		to_add.name         = grabbed_sticker->name;
-		to_add.description  = grabbed_sticker->description;
-		to_add.filename     = to_add.name + ".png";
-		to_add.tags         = grabbed_sticker->tags;
-		to_add.type         = dpp::st_guild;
-		std::ranges::replace(to_add.filename, ' ', '_');
-
-		auto add_result = sticker_add(to_add);
-		if (!add_result.has_value())
-		{
-			ret.append(
-				"{} Failed to add sticker `{}`: \"{}\"\nAdding image as attachment for manual addition",
-				lang::ERROR_EMOJI,
-				grabbed_sticker->name,
-				add_result.error().message
-			);
-			attachment_add(ret.content.message, s, to_add.filecontent);
-		}
-		else
-		{
-			ret.append(
-				"{} Added sticker \"{}\"!",
-				lang::SUCCESS_EMOJI,
-				grabbed_sticker->name
-			);
-		}
-		if (resize_result == ImageProcessResult::RESIZED)
-			ret.append(" (note : the image was resized due to being too large)");
-	}
-	return (ret);
+	sticker_grab_task(&Bot::bot(), std::get<B12::CommandSource::Interaction>(_source.source).event, message_id, channel_id);
+	return {CommandResponse::None{}};
 }

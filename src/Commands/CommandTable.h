@@ -11,24 +11,33 @@
 
 using namespace B12;
 
-template <string_literal Command>
+template <shion::basic_string_literal Command>
 constexpr inline auto default_command_handler = &CommandHandler::command<Command>;
 
-template <string_literal Name, command_handler_type auto Handler, typename... Options>
+template <shion::basic_string_literal Name, command_handler_type auto Handler, typename... Options>
+#ifndef __INTELLISENSE__
+requires (true && ... && _::is_command_option<std::remove_cvref_t<Options>>)
+#endif
 constexpr auto make_command(std::string_view description, Options&&... options)
 {
-	return (Command<Name, Handler, Options...>(description, std::forward<Options>(options)...));
+	return (Command<Name, Handler, std::remove_cvref_t<Options>...>(description, std::forward<Options>(options)...));
 }
 
-template <string_literal Name, command_option_type... Options>
+template <shion::basic_string_literal Name, typename... Options>
+#ifndef __INTELLISENSE__
+requires (true && ... && _::is_command_option<std::remove_cvref_t<Options>>)
+#endif
 constexpr auto make_command(std::string_view description, Options&&... options)
 {
 	return (
-		Command<Name, default_command_handler<Name>, Options...>(description, std::forward<Options>(options)...));
+		Command<Name, default_command_handler<Name>, std::remove_cvref_t<Options>...>(description, std::forward<Options>(options)...)
+	);
 }
 
-template <string_literal Name, typename... Options>
+template <shion::basic_string_literal Name, typename... Options>
+#ifndef __INTELLISENSE__
 requires (true && ... && _::is_command_option<std::remove_cvref_t<Options>>)
+#endif
 constexpr auto make_command(
 	std::string_view description,
 	uint64_t         user_permissions,
@@ -50,8 +59,9 @@ constexpr auto make_command(std::string_view description)
 	return (Command<Name, Handler>(description));
 }
 
-template <shion::basic_string_literal Name, dpp_command_option_type... CommandTypes>
-constexpr auto make_option(std::string_view description, bool required, CommandTypes&&... types)
+template <shion::basic_string_literal Name, typename... CommandTypes>
+requires (std::same_as<dpp::command_option_type, CommandTypes> && ...)
+constexpr auto make_option(std::string_view description, bool required, CommandTypes... types)
 {
 	return (CommandOption<Name, sizeof...(CommandTypes)>(
 		description,
@@ -64,6 +74,8 @@ constexpr inline auto noop_command = [](auto...) -> CommandResponse
 {
 	return {CommandResponse::InternalError{}, {{"Invalid command"}}};
 };
+
+static inline constexpr auto test = _::is_command_option<CommandOption<"role", 1>>;
 
 inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(
 	make_command<"meow">("meow to me!"),

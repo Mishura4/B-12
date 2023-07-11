@@ -12,44 +12,27 @@
 namespace B12
 {
 	class CommandHandler;
-	
-	template <typename T>
-	concept dpp_command_option_type = std::same_as<T, dpp::command_option_type>;
 
-	template <shion::string_literal Name, size_t NumTypes>
+	template <shion::basic_string_literal Name, size_t NumTypes>
 	struct CommandOption
 	{
 		static constexpr auto NAME = Name;
 
-		constexpr CommandOption(std::string_view description_, bool required_, auto&&... types_)
-			requires (dpp_command_option_type<std::remove_cvref_t<decltype(types_)>> && ...) :
+		constexpr CommandOption(std::string_view description_, bool required_, auto... types_)
+			requires (std::same_as<dpp::command_option_type, decltype(types_)> && ...) :
 			description{description_},
 			possible_types{types_...},
 			required(required_) {}
 
-		template <decltype(NAME) key>
-			requires(!shion::is_string_literal<decltype(NAME)> && key == NAME)
+		template <shion::basic_string_literal key>
+			requires(NAME.strict_equals(key))
 		constexpr const auto &get_option() const
 		{
 			return (*this);
 		}
 
-		template <decltype(NAME) key>
-			requires(!shion::is_string_literal<decltype(NAME)> && key == NAME)
-		constexpr auto &get_option()
-		{
-			return (*this);
-		}
-
-		template <string_literal key>
-			requires(shion::is_string_literal<decltype(NAME)> && NAME.strict_equals(key))
-		constexpr const auto &get_option() const
-		{
-			return (*this);
-		}
-
-		template <string_literal key>
-			requires(shion::is_string_literal<decltype(NAME)> && NAME.strict_equals(key))
+		template <shion::basic_string_literal key>
+			requires(NAME.strict_equals(key))
 		constexpr auto &get_option()
 		{
 			return (*this);
@@ -62,11 +45,11 @@ namespace B12
 
 	namespace _
 	{
+
 		template <typename T>
 		inline constexpr bool is_command_option = false;
 
-		template <auto Name, size_t NumTypes>
-		requires (shion::is_string_literal<decltype(Name)>)
+		template <shion::basic_string_literal Name, size_t NumTypes>
 		inline constexpr bool is_command_option<CommandOption<Name, NumTypes>> = true;
 
 		template <typename T>
@@ -104,10 +87,10 @@ namespace B12
 	);
 
 	template <
-		shion::string_literal Name,
+		shion::basic_string_literal Name,
 		auto Handler,
 		typename... Options>
-	requires (command_handler_type<decltype(Handler)> && (true && ... && command_option_type<Options>))
+	requires (command_handler_type<decltype(Handler)> && (true && ... && _::is_command_option<Options>))
 	struct Command : Options...
 	{
 		using Options::get_option...;
