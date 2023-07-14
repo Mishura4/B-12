@@ -6,7 +6,6 @@
 
 #include <CImg.h>
 #include <png.h>
-#include <nonstd/expected.hpp>
 
 #ifdef None // X11 included from CImg
 #undef None
@@ -44,53 +43,6 @@ namespace
 		return {std::nullopt};
 	};
 
-	auto sticker_get(dpp::cluster *cluster, dpp::snowflake id) -> dpp::co_task<std::optional<dpp::sticker>>
-	{
-		auto confirm = co_await cluster->co_nitro_sticker_get(id);
-
-		if (confirm.is_error())
-			co_return {std::nullopt};
-		else
-			co_return (confirm.get<dpp::sticker>());
-	}
-
-	auto sticker_content_get(dpp::cluster *cluster, const dpp::sticker& sticker) -> dpp::co_task<std::optional<std::string>>
-	{
-		auto               content = std::optional<std::string>{std::nullopt};
-		auto               request =
-			[](dpp::cluster* bot, const std::string& url, const dpp::http_completion_event& callback)
-		{
-			bot->request(url, dpp::m_get, callback);
-		};
-		auto content_retriever =
-			AsyncExecutor<dpp::http_request_completion_t, dpp::http_request_completion_t>{
-				[&](const dpp::http_request_completion_t& result)
-				{
-					if (result.status != 200)
-						return;
-					content = result.body;
-				}
-			};
-
-		auto awaitable = cluster->co_request(sticker.get_url(), dpp::m_get);
-		auto result = co_await awaitable;
-
-		if (result.status >= 300)
-			co_return {std::nullopt};
-		else
-			co_return (result.body);
-	}
-
-	auto sticker_add(dpp::cluster *cluster, dpp::sticker& sticker) -> dpp::co_task<nonstd::expected<dpp::sticker, dpp::error_info>>
-	{
-		auto confirm = co_await cluster->co_guild_sticker_create(sticker);
-
-		if (confirm.is_error())
-			co_return nonstd::make_unexpected(confirm.get_error());
-		else
-			co_return {confirm.get<dpp::sticker>()};
-	}
-
 	void attachment_add(dpp::message& msg, const dpp::sticker& sticker, const std::string& content)
 	{
 		if (std::optional format = find_sticker_format(sticker.format_type); format.has_value())
@@ -112,7 +64,7 @@ namespace
 		NOOP    = 2
 	};
 
-	ImageProcessResult image_process(std::optional<std::string>& content)
+	ImageProcessResult image_process(std::string& content)
 	{
 		using enum ImageProcessResult;
 
@@ -126,7 +78,7 @@ namespace
 
 		image.version = PNG_IMAGE_VERSION;
 		image.format  = PNG_FORMAT_RGBA;
-		png_image_begin_read_from_memory(&image, content->data(), content->size());
+		png_image_begin_read_from_memory(&image, content.data(), content.size());
 		if (image.width <= MAX_SIZE && image.height <= MAX_SIZE)
 		{
 			png_image_finish_read(&image, nullptr, nullptr, 0, nullptr);
@@ -181,8 +133,31 @@ namespace
 	}
 }
 
-namespace {
-	auto sticker_grab_task(dpp::cluster *cluster, dpp::interaction_create_t event, dpp::snowflake message_id, dpp::snowflake channel_id) -> dpp::co_task<void>
+template <>
+CommandResponse CommandHandler::command<"server sticker grab">(
+	command_option_view options
+)
+{
+	const dpp::interaction_create_t &event = std::get<B12::CommandSource::Interaction>(_source.source).event; // TODO : remove boilerplate
+	dpp::snowflake channel_id{_channel->id};
+	dpp::snowflake message_id{0};
+
+	for (const dpp::command_data_option& opt : options)
+	{
+		if (opt.type == dpp::co_channel && opt.name == "channel")
+		{
+			channel_id = std::get<dpp::snowflake>(opt.value);
+		}
+		else if (opt.type == dpp::co_string && opt.name == "message")
+		{
+			auto value = std::get<std::string>(opt.value);
+			message_id = std::stoull(value);
+		}
+	}
+	if (!message_id)
+		return {CommandResponse::UsageError{}, {{"Error: could not parse message id"}}};
+
+	constexpr auto task = [](dpp::cluster *cluster, dpp::interaction_create_t event, dpp::snowflake message_id, dpp::snowflake channel_id) -> dpp::task<void>
 	{
 		dpp::confirmation_callback_t confirm = co_await dpp::awaitable(event, &dpp::interaction_create_t::thinking, false);
 
@@ -220,44 +195,49 @@ namespace {
 
 		for (const dpp::sticker& s : message.stickers)
 		{
-			auto content = co_await sticker_content_get(cluster, s);
-			if (!content)
+			auto download_result = co_await cluster->co_request(s.get_url(), dpp::m_get);
+
+			if (download_result.status >= 300)
 			{
 				ret.content.append(fmt::format("{} Could not download image data", lang::ERROR_EMOJI));
 				continue;
 			}
-			auto grabbed_sticker = co_await sticker_get(cluster, s.id);
-			if (!grabbed_sticker)
+			std::string sticker_data = std::move(download_result.body);
+			confirm = co_await cluster->co_nitro_sticker_get(s.id);
+
+			if (confirm.is_error())
 			{
 				ret.content.append(fmt::format(
 					"{} Could not request sticker details, was it deleted? Adding image as attachment for manual addition.",
 					lang::ERROR_EMOJI
 				));
-				attachment_add(ret, s, *content);
+				attachment_add(ret, s, sticker_data);
 				continue;
 			}
 
-			dpp::sticker to_add;
-			auto         resize_result = image_process(content);
+			const dpp::sticker &grabbed_sticker = confirm.get<dpp::sticker>();
 
-			to_add.filecontent  = std::move(*content);
+			dpp::sticker to_add;
+			auto         resize_result = image_process(sticker_data);
+
+			to_add.filecontent  = std::move(download_result.body);
 			to_add.guild_id     = event.command.guild_id;
 			to_add.sticker_user = cluster->me;
-			to_add.name         = grabbed_sticker->name;
-			to_add.description  = grabbed_sticker->description;
+			to_add.name         = grabbed_sticker.name;
+			to_add.description  = grabbed_sticker.description;
 			to_add.filename     = to_add.name + ".png";
-			to_add.tags         = grabbed_sticker->tags;
+			to_add.tags         = grabbed_sticker.tags;
 			to_add.type         = dpp::st_guild;
 			std::ranges::replace(to_add.filename, ' ', '_');
 
-			auto add_result = co_await sticker_add(cluster, to_add);
-			if (!add_result.has_value())
+			confirm = co_await cluster->co_guild_sticker_create(to_add);
+			if (confirm.is_error())
 			{
 				ret.content.append(fmt::format(
 					"{} Failed to add sticker `{}`: \"{}\"\nAdding image as attachment for manual addition",
 					lang::ERROR_EMOJI,
-					grabbed_sticker->name,
-					add_result.error().message
+					grabbed_sticker.name,
+					confirm.get_error().message
 				));
 				attachment_add(ret, s, to_add.filecontent);
 			}
@@ -266,7 +246,7 @@ namespace {
 				ret.content.append(fmt::format(
 					"{} Added sticker \"{}\"!",
 					lang::SUCCESS_EMOJI,
-					grabbed_sticker->name
+					grabbed_sticker.name
 				));
 			}
 			if (resize_result == ImageProcessResult::RESIZED)
@@ -276,32 +256,8 @@ namespace {
 			if (c.is_error())
 				B12::log(LogLevel::BASIC, "an error occured while trying to edit `server sticker grab` command response:\n{}", c.get_error().message);
 		});
-	}
-}
+	};
 
-template <>
-CommandResponse CommandHandler::command<"server sticker grab">(
-	command_option_view options
-)
-{
-	dpp::snowflake channel_id{_channel->id};
-	dpp::snowflake message_id{0};
-
-	for (const dpp::command_data_option& opt : options)
-	{
-		if (opt.type == dpp::co_channel && opt.name == "channel")
-		{
-			channel_id = std::get<dpp::snowflake>(opt.value);
-		}
-		else if (opt.type == dpp::co_string && opt.name == "message")
-		{
-			auto value = std::get<std::string>(opt.value);
-			message_id = std::stoull(value);
-		}
-	}
-	if (!message_id)
-		return {CommandResponse::UsageError{}, {{"Error: could not parse message id"}}};
-
-	sticker_grab_task(&Bot::bot(), std::get<B12::CommandSource::Interaction>(_source.source).event, message_id, channel_id);
+	task(event.from->creator, event, message_id, channel_id);
 	return {CommandResponse::None{}};
 }

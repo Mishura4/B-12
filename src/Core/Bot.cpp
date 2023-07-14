@@ -276,7 +276,7 @@ int Bot::run()
 #ifdef B12_DEBUG
 		/*
 		_bot->on_message_create.co_attach(
-			[this](const dpp::message_create_t& e) -> dpp::co_task<void>
+			[](const dpp::message_create_t& e) -> dpp::task<void>
 			{
 				if (e.msg.author == e.from->creator->me.id)
 					co_return;
@@ -292,7 +292,7 @@ int Bot::run()
 					}
 				}
 				auto *cluster = &Bot::bot();
-				auto test = [](dpp::cluster *cluster, dpp::message event) -> dpp::co_task<void> {
+				auto test = [](dpp::cluster *cluster, dpp::message event) -> dpp::task<void> {
 					dpp::confirmation_callback_t confirm = co_await cluster->co_message_create(dpp::message{"Retrieving emoji list"}.set_channel_id(event.channel_id));
 					dpp::message original = confirm.get<dpp::message>();
 					
