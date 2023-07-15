@@ -99,7 +99,63 @@ CommandResponse CommandHandler::command<"meow">(
 {
 	static constexpr auto INTRO_URL =
 		"https://cdn.discordapp.com/attachments/1066393377236594699/1066779084845220020/b-12.mp4"sv;
+	_source.sendThink(false);
+auto *cluster = &Bot::bot();
+auto test = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::task<bool> {
+	auto channel_id = command.channel_id;
+	auto guild_id = command.guild_id;
 
+	auto nested = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::task<std::optional<dpp::message>> {
+		auto get_nickname = [](dpp::cluster *cluster, dpp::interaction command) -> dpp::task<std::optional<std::string>> {
+			B12::log(LogLevel::BASIC, "get nickname");
+			dpp::confirmation_callback_t c = co_await cluster->co_guild_get_member(command.guild_id, command.get_issuing_user().id);
+			B12::log(LogLevel::BASIC, "got");
+			if (c.is_error())
+				co_return {std::nullopt};
+			auto member = c.get<dpp::guild_member>();
+			B12::log(LogLevel::BASIC, "member {}", member.nickname);
+			co_return {member.nickname};
+		};
+		dpp::message m = dpp::message{"testlol"}.set_channel_id(command.channel_id);
+		dpp::task nickname_coro = get_nickname(cluster, command);
+			
+			B12::log(LogLevel::BASIC, "after get nickname");
+		dpp::confirmation_callback_t c = co_await cluster->co_message_create(m);
+			B12::log(LogLevel::BASIC, "after message_create");
+		if (c.is_error())
+			co_return {std::nullopt};
+		m = c.get<dpp::message>();
+		if (c.is_error())
+			co_return {std::nullopt};
+			B12::log(LogLevel::BASIC, "co_await nickname_coro");
+		std::optional<std::string> nickname = co_await nickname_coro;
+
+		m.content = fmt::format("{} oh hi {}", m.content, *nickname);
+		B12::log(LogLevel::BASIC, "editing");
+		c = co_await cluster->co_message_edit(m);
+		B12::log(LogLevel::BASIC, "edited");
+		co_return {m};
+	};
+
+	dpp::task<std::optional<dpp::message>> tasks[3];
+
+	for (auto &task : tasks)
+	{
+		task = nested(cluster, command);
+	}
+	for (auto &task : tasks)
+	{
+		auto result = co_await task;
+		B12::log(LogLevel::BASIC, "result : {}", result.has_value());
+		if (!result.has_value())
+			co_return false;
+		co_await cluster->co_message_add_reaction(*result, std::string{lang::SUCCESS_EMOJI});
+	}
+	co_return true;
+};
+auto task = dpp::task<bool>(std::move(test(cluster, std::get<0>(this->_source.source).event.command)));
+B12::log(LogLevel::BASIC, "boom");
+std::cout << "boom" << std::endl;
 	return {CommandResponse::Success{}, dpp::message{ std::string{INTRO_URL} }};
 }
 
