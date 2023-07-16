@@ -288,7 +288,7 @@ int Bot::run()
 					co_return;
 				}
 				// Send a "<bot> is thinking..." message, to wait on later so we can edit
-				dpp::awaitable thinking = event.co_thinking(false);
+				dpp::awaitable thinking = event.co_thinking(false);	
 
 				// Download and co_await the result
 				dpp::http_request_completion_t response = co_await cluster->co_request(attachment.url, dpp::m_get);
@@ -315,11 +315,9 @@ int Bot::run()
 		});
 
 		_bot->on_slashcommand.co_attach([](dpp::slashcommand_t event) -> dpp::task<void> {
-			if (event.command.get_command_name() == "dev_avatar" || event.command.get_command_name() == "avatar")
-			{
+			if (event.command.get_command_name() == "dev_avatar" || event.command.get_command_name() == "avatar") {
 				// Make a nested coroutine to fetch the guild member requested
-				constexpr auto resolve_member = [](const dpp::slashcommand_t &event) -> dpp::task<std::optional<dpp::guild_member>>
-				{
+				constexpr auto resolve_member = [](const dpp::slashcommand_t &event) -> dpp::task<std::optional<dpp::guild_member>> {
 					const dpp::command_value &user_param = event.get_parameter("user");
 					dpp::snowflake user_id;
 
@@ -351,8 +349,6 @@ int Bot::run()
 
 				// Send a "<bot> is thinking..." message, to wait on later so we can edit
 				dpp::awaitable thinking = event.co_thinking(false);
-
-				co_await event.from->creator->co_timer(10);
 
 				// Call our coroutine defined above to retrieve the member requested
 				std::optional<dpp::guild_member> member = co_await resolve_member(event);
