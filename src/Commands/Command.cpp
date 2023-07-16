@@ -390,3 +390,19 @@ CommandResponse CommandHandler::command<"poll">(
 	auto coro = respond(&Bot::bot(), std::get<0>(_source.source).event, std::move(title), std::move(choices), create_thread, limit_1, role_id);
 	return (CommandResponse{CommandResponse::None{}});
 }
+
+template<>
+CommandResponse CommandHandler::command<"avatar">(
+	command_option_view options
+)
+{
+	return {CommandResponse::None{}};
+}
+
+template<>
+CommandResponse CommandHandler::command<"addemoji">(
+	command_option_view options
+)
+{
+	return {CommandResponse::None{}};
+}

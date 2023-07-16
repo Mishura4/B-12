@@ -135,5 +135,18 @@ inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(
 		CommandOption<"choice-8", 1>{"Choice 8 for the poll", false, dpp::co_string},
 		CommandOption<"create-thread", 1>{"Whether to create a thread or not (default: no)", false, dpp::co_boolean},
 		CommandOption<"ping-role", 1>{"Role to ping / to grab into the thread (default: none)", false, dpp::co_role}
+	),
+	make_command<"avatar">(
+		"Get your or another user's avatar",
+		dpp::p_send_messages | dpp::p_embed_links,
+		dpp::p_send_messages | dpp::p_embed_links,
+		CommandOption<"user", 1>{"User", false, dpp::co_user}
+	),
+	make_command<"addemoji">(
+		"Add an emoji",
+		dpp::p_send_messages | dpp::p_manage_emojis_and_stickers,
+		dpp::p_send_messages | dpp::p_manage_emojis_and_stickers,
+		CommandOption<"file", 1>{"File", true, dpp::co_attachment},
+		CommandOption<"name", 1>{"Name", true, dpp::co_string}
 	)
 );

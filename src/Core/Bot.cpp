@@ -273,6 +273,117 @@ int Bot::run()
 				guild->handleButtonClick(e);
 			}
 		);
+
+		_bot->on_slashcommand.co_attach([](dpp::slashcommand_t event) -> dpp::task<void> {
+			if (event.command.get_command_name() == "dev_addemoji" || event.command.get_command_name() == "addemoji") {
+				dpp::cluster *cluster = event.from->creator;
+				dpp::snowflake file_id = std::get<dpp::snowflake>(event.get_parameter("file"));
+				std::string emoji_name = std::get<std::string>(event.get_parameter("name"));
+
+				const dpp::attachment &attachment = event.command.get_resolved_attachment(file_id);
+
+				// For simplicity for this example we only support PNG
+				if (attachment.content_type != "image/png") {
+					event.reply("Error: type " + attachment.content_type + " not supported");
+					co_return;
+				}
+				// Send a "<bot> is thinking..." message, to wait on later so we can edit
+				dpp::awaitable thinking = event.co_thinking(false);
+
+				// Download and co_await the result
+				dpp::http_request_completion_t response = co_await cluster->co_request(attachment.url, dpp::m_get);
+
+				if (response.status != 200) { // Page didn't send the image
+					co_await thinking; // Wait for the thinking response to arrive so we can edit
+					event.edit_response("Error: could not download the attachment");
+				}
+				else {
+					// Load the image data in a dpp::emoji
+					dpp::emoji emoji(emoji_name);
+					emoji.load_image(response.body, dpp::image_type::i_png);
+
+					// Create the emoji and co_await the response
+					dpp::confirmation_callback_t confirmation = co_await cluster->co_guild_emoji_create(event.command.guild_id, emoji);
+
+					co_await thinking; // Wait for the thinking response to arrive so we can edit
+					if (confirmation.is_error())
+						event.edit_response("Error: could not add emoji: " + confirmation.get_error().message);
+					else // Success
+						event.edit_response("Successfully added " + confirmation.get<dpp::emoji>().get_mention()); // Show the new emoji
+				}
+			}
+		});
+
+		_bot->on_slashcommand.co_attach([](dpp::slashcommand_t event) -> dpp::task<void> {
+			if (event.command.get_command_name() == "dev_avatar" || event.command.get_command_name() == "avatar")
+			{
+				// Make a nested coroutine to fetch the guild member requested
+				constexpr auto resolve_member = [](const dpp::slashcommand_t &event) -> dpp::task<std::optional<dpp::guild_member>>
+				{
+					const dpp::command_value &user_param = event.get_parameter("user");
+					dpp::snowflake user_id;
+
+					if (std::holds_alternative<std::monostate>(user_param))
+						user_id = event.command.usr.id; // Parameter is empty so user is sender
+					else if (std::holds_alternative<dpp::snowflake>(user_param))
+						user_id = std::get<dpp::snowflake>(user_param); // Parameter has a user
+
+					// If we have the guild member in the command's resolved data, return it
+					const auto &member_map = event.command.resolved.members;
+					if (auto member = member_map.find(user_id); member != member_map.end())
+						co_return member->second;
+
+					// Try looking in guild cache
+					dpp::guild *guild = dpp::find_guild(event.command.guild_id);
+					if (guild) {
+						if (auto member = guild->members.find(user_id); member != guild->members.end()) {
+							co_return member->second;
+						}
+					}
+
+					// Finally if everything else failed, request API
+					dpp::confirmation_callback_t confirmation = co_await event.from->creator->co_guild_get_member(event.command.guild_id, user_id);
+					if (confirmation.is_error())
+						co_return std::nullopt; // Member not found, return empty
+					else
+						co_return confirmation.get<dpp::guild_member>();
+				};
+
+				// Send a "<bot> is thinking..." message, to wait on later so we can edit
+				dpp::awaitable thinking = event.co_thinking(false);
+
+				co_await event.from->creator->co_timer(10);
+
+				// Call our coroutine defined above to retrieve the member requested
+				std::optional<dpp::guild_member> member = co_await resolve_member(event);
+
+				if (!member.has_value()) {
+					// Wait for the thinking response to arrive to make sure we can edit
+					co_await thinking;
+					event.edit_original_response(dpp::message{"User not found!"});
+					co_return;
+				}
+
+				std::string avatar_url = member->get_avatar_url(512);
+				if (avatar_url.empty()) { // Member does not have a custom avatar for this server, get their user avatar
+					dpp::confirmation_callback_t confirmation = co_await event.from->creator->co_user_get_cached(member->user_id);
+
+					if (confirmation.is_error())
+					{
+						// Wait for the thinking response to arrive to make sure we can edit
+						co_await thinking;
+						event.edit_original_response(dpp::message{"User not found in this server!"});
+						co_return;
+					}
+					avatar_url = confirmation.get<dpp::user_identified>().get_avatar_url(512);
+				}
+
+				// Wait for the thinking response to arrive to make sure we can edit
+				co_await thinking;
+				event.edit_original_response(dpp::message{avatar_url});
+			}
+		});
+
 #ifdef B12_DEBUG
 		_bot->on_message_create.co_attach(
 			[this](const dpp::message_create_t& e) -> dpp::task<void>
