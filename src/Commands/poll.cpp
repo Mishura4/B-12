@@ -178,6 +178,14 @@ std::string get_member_avatar(const dpp::user &user, const dpp::guild_member &me
 	return member_av;
 }
 
+constexpr bool is_valid_poll_param(std::string_view str) noexcept {
+	return (str.size() <= 60);
+}
+
+constexpr bool is_valid_poll_param(B12::command::optional_param<std::string_view> str) noexcept {
+	return (str.has_value() ? is_valid_poll_param(*str) : true);
+};
+
 }
 
 namespace B12::command {
@@ -199,6 +207,25 @@ dpp::coroutine<response> poll(
 	dpp::cluster &cluster = *event.from->creator;
 	dpp::permission user_perms = event.command.get_resolved_permission(event.command.get_issuing_user().id);
 
+	if (title.size() > 80) {
+		co_return command::response::reply(
+			command::response::usage_error("Poll title is too long. (max. 80 characters)")
+				.set_flags(dpp::m_ephemeral)
+		);
+	}
+	if(!is_valid_poll_param(option1)
+			|| !is_valid_poll_param(option2)
+			|| !is_valid_poll_param(option3)
+			|| !is_valid_poll_param(option4)
+			|| !is_valid_poll_param(option5)
+			|| !is_valid_poll_param(option6)
+			|| !is_valid_poll_param(option7)
+			|| !is_valid_poll_param(option8)) {
+		co_return command::response::reply(
+			command::response::usage_error("An option is too long. (max. 60 characters)")
+				.set_flags(dpp::m_ephemeral)
+		);
+	}
 	if (ping_role.has_value() && !(ping_role->is_mentionable() || user_perms.can(dpp::p_mention_everyone))) {
 		B12::log(LogLevel::INFO, "{} ({}) was denied mentioning role {} ({}) in guild {} through /poll",
 			event.command.usr.id, event.command.usr.format_username(),
@@ -225,9 +252,9 @@ dpp::coroutine<response> poll(
 		dpp::message message = co_await or_throw<dpp::message>(event.co_get_original_response());
 		std::vector<dpp::task<void>> react_tasks;
 
-		message.content = fmt::format("{} {}", dpp::unicode_emoji::bar_chart, title);
+		message.content = fmt::format("## {} {}", dpp::unicode_emoji::bar_chart, title);
 		for (size_t i = 0; i < choices.size(); ++i) {
-			choices[i].react_task = ([](dpp::cluster &bot, const dpp::message &m, poll_choice &choice, int react_counter) -> dpp::task<bool> {
+			choices[i].react_task = ([](dpp::cluster &bot, const dpp::message &m, poll_choice &choice, size_t react_counter) -> dpp::task<bool> {
 				if (choice.emoji) {
 					auto result = co_await bot.co_message_add_reaction(m, choice.emoji.name);
 					if (!result.is_error())
@@ -260,7 +287,7 @@ dpp::coroutine<response> poll(
 		);
 		co_await or_throw(event.co_edit_original_response(message));
 		if (create_thread.value_or(false)) {
-			dpp::thread thread = co_await or_throw<dpp::thread>(cluster.co_thread_create_with_message(message.content, message.channel_id, message.id, 60, 0));
+			dpp::thread thread = co_await or_throw<dpp::thread>(cluster.co_thread_create_with_message(fmt::format("{} {}", dpp::unicode_emoji::bar_chart, title), message.channel_id, message.id, 60, 0));
 			if (ping_role.has_value()) {
 				message = dpp::message{fmt::format("New poll started by {}! {}", author.get_mention(), ping_role->get_mention())};
 
