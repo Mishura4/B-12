@@ -28,7 +28,8 @@ source_group(
 
 target_sources(B12
 	PRIVATE
-		${B12_SOURCES})
+		${B12_SOURCES}
+)
 
 set_target_properties(B12
 	PROPERTIES
@@ -72,7 +73,7 @@ target_compile_definitions(
 )
 
 if(MSVC)
-	target_compile_options(B12 PRIVATE /W4 /wd4251)
+	target_compile_options(B12 PRIVATE /W4 /wd4251 /utf-8)
 
 	if (NOT WINDOWS_32_BIT)
 		set(DPP_DEP_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/dep/DPP/win32/bin")

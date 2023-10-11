@@ -25,6 +25,7 @@ set(COMMAND_SOURCES
     commands.cpp
     command_handler.h
     command_table.h
+    poll.cpp
 )
 
 set(POKEMON_SOURCES

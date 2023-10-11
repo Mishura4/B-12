@@ -25,7 +25,7 @@ namespace command {
 		*/command_info{"bigmoji", "Make an emoji big", &bigmoji, {{"emoji", "Emoji to show"}}},
 		command_info{"ban", "Ban a user", &ban,
 			{{"user", "User to ban"}, {"time", "Duration of the ban"}, {"reason", "Reason for the ban"}}
-		}/*,
+		},
 		//command_info{"pokemon_dex", &command::pokemon_dex, {"name-or-number"}},
 		command_info{"poll", "Create a poll", &poll, {
 				{"title", "Title of the poll"},
@@ -40,7 +40,7 @@ namespace command {
 				{"create-thread", "Whether to create a thread for the poll or not"},
 				{"ping-role", "Optional role to ping"}
 			}
-		}*/
+		}
 	};
 
 	std::vector<dpp::slashcommand> get_api_commands(dpp::snowflake app_id);

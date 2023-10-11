@@ -78,9 +78,6 @@ namespace command {
 			return {to_slashcommand(std::get<Ns>(COMMAND_TABLE.subcommands), app_id_)...};
 		}(app_id, std::make_index_sequence<decltype(COMMAND_TABLE)::args_n>{});
 	}
-
-	namespace {
-	}
 } /* namespace command */
 
 } /* namespace B12 */

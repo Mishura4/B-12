@@ -62,7 +62,7 @@ namespace command {
 
 		template <typename... Args>
 		static response none() {
-			return {};
+			return {{}, action_t::none};
 		}
 
 		dpp::message message{success()};

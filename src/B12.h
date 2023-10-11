@@ -26,6 +26,8 @@
 
 #include <dpp/dpp.h>
 
+#include <source_location>
+
 #ifdef ERROR
 #  undef ERROR
 #endif
@@ -211,6 +213,13 @@ namespace B12
 			_cv.wait(lock, wait);
 		}
 	};
+
+	inline std::string format_command_error(dpp::interaction_create_t const &event, std::string_view error, std::source_location loc = std::source_location::current()) {
+		return (fmt::format(
+			"error in {}: \n\t{}\n\tuser: {: >16}\tguild: {: >16}\tchannel: {: >16}",
+			loc.function_name(), error, event.command.usr.id, event.command.guild_id, event.command.channel_id
+		));
+	}
 } // namespace B12
 
 #endif

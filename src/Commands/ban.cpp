@@ -1,14 +1,9 @@
 #include "Core/Bot.h"
-
 #include "B12.h"
-#include "Command.h"
-#include "CommandHandler.h"
-
-#include "../Data/Lang.h"
+#include "Data/Lang.h"
+#include "commands.h"
 
 #include <ranges>
-
-#include "commands.h"
 
 using namespace B12;
 
@@ -35,7 +30,12 @@ namespace {
 	}
 }
 
-dpp::coroutine<command::response> command::ban(dpp::interaction_create_t const &event, command::resolved_user user, command::optional_param<std::chrono::seconds> duration, command::optional_param<std::string_view> reason) {
+auto command::ban(
+	dpp::interaction_create_t const &event,
+	resolved_user user,
+	optional_param<std::chrono::seconds> duration,
+	optional_param<std::string_view> reason
+) -> dpp::coroutine<command::response> {
 	auto thinking = event.co_thinking(false);
 
 	dpp::confirmation_callback_t result = co_await event.from->creator->co_guild_get_ban(event.command.guild_id, user.user.id);
@@ -46,7 +46,11 @@ dpp::coroutine<command::response> command::ban(dpp::interaction_create_t const &
 	if (!result.is_error()) {
 		const dpp::ban &ban = result.get<dpp::ban>();
 
-		co_return (command::response::edit(fmt::format("User <@{}> is already banned. ({})", user.user.id, ban.reason.empty() ? "no reason specified"sv : ban.reason)));
+		co_return (command::response::edit(
+			fmt::format("User <@{}> is already banned. ({})",
+			user.user.id,
+			ban.reason.empty() ? "no reason specified"sv : ban.reason
+		)));
 	}
 
 	std::string interaction_id = event.command.id.str();
@@ -62,7 +66,9 @@ dpp::coroutine<command::response> command::ban(dpp::interaction_create_t const &
 	}
 
 	auto response = co_await dpp::when_any{
-		event.from->creator->on_button_click.when([&interaction_id](const dpp::button_click_t &b) { return b.custom_id.starts_with(interaction_id); }),
+		event.from->creator->on_button_click.when([&interaction_id](const dpp::button_click_t &b) {
+			return b.custom_id.starts_with(interaction_id);
+		}),
 		event.from->creator->co_sleep(15)
 	};
 	if (response.index() == 0) {
