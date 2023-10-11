@@ -8,6 +8,9 @@
 
 #include <array>
 
+#include "Commands/commands.h"
+#include "Commands/command_table.h"
+
 using namespace B12;
 
 Bot* Bot::_s_instance{nullptr};
@@ -65,7 +68,7 @@ std::string Bot::_fetchToken(const char* console_arg) const
 Bot::Bot(const char* discord_token)
 {
 	std::locale::global(std::locale("en_US.UTF-8"));
-	
+
 	struct BotSingletonException : public FatalException
 	{
 		using FatalException::FatalException;
@@ -223,6 +226,8 @@ bool Bot::_initDatastores()
 
 namespace {}
 
+#include "Commands/commands.h"
+
 int Bot::run()
 {
 	stdfs::path currentDir = stdfs::current_path();
@@ -247,12 +252,38 @@ int Bot::run()
 				_s_instance->_onReadyEvent(e);
 			}
 		);
-		_bot->on_slashcommand(
-			[](const dpp::slashcommand_t& e)
-			{
-				_s_instance->_onSlashCommandEvent(e);
+		_bot->on_slashcommand([handler = command::command_handler<dpp::slashcommand_t, command::response>::from_command_table<command::COMMAND_TABLE>()](dpp::slashcommand_t event) -> dpp::job {
+			command::command_result<command::response> response = co_await handler(event);
+
+			if (response.is_error()) {
+				switch (response.get_error()) {
+					case command::command_error::internal_error:
+						event.reply(command::response::internal_error());
+						break;
+
+					case command::command_error::syntax_error:
+						event.reply("Invalid command or params");
+						break;
+				}
+				co_return;
 			}
-		);
+			const command::response& r = response.get();
+
+			switch (r.action) {
+				using enum command::response::action_t;
+
+				case none:
+					break;
+
+				case reply:
+					event.reply(r.message);
+					break;
+
+				case edit:
+					event.edit_original_response(r.message);
+					break;
+			}
+		});
 		_bot->on_message_create(
 			[](const auto& e)
 			{
@@ -262,6 +293,7 @@ int Bot::run()
 		_bot->on_button_click(
 			[](const dpp::button_click_t& e)
 			{
+				return;
 				Guild* guild = _s_instance->fetchGuild(e.command.guild_id);
 				if (!guild)
 				{
@@ -387,171 +419,6 @@ void Bot::MCPUpdate(dpp::snowflake id)
 	_s_instance->_MCPs.erase(id);
 }
 
-template <size_t CommandN, size_t N>
-constexpr Bot::CommandParameter Bot::_gatherParameter()
-{
-	constexpr auto& entry        = std::get<CommandN>(COMMAND_TABLE);
-	constexpr auto& option_name_ =
-		std::remove_reference_t<decltype(entry)>::option_list::template at<N>::NAME;
-	constexpr auto& option = entry.template get_option<option_name_>();
-
-	return {
-		.name{option_name_},
-		.description{option.description},
-		.possible_types{option.possible_types},
-		.required{option.required}
-	};
-}
-
-template <size_t CommandN, size_t... Is>
-constexpr auto Bot::_gatherParameters(
-	std::index_sequence<Is...>
-) -> std::array<CommandParameter, sizeof...(Is)>
-{
-	return {_gatherParameter<CommandN, Is>()...};
-}
-
-template <size_t N>
-constexpr void Bot::_gatherCommand(CommandNode& base)
-{
-	constexpr auto&            entry   = std::get<N>(COMMAND_TABLE);
-	constexpr std::string_view name    = entry.name;
-	Bot::CommandNode*          current = &base;
-
-	size_t begin = 0;
-	while (begin < name.size())
-	{
-		size_t end = name.find(' ', begin);
-		if (end == std::string_view::npos)
-			end = name.size();
-		std::string_view word = name.substr(begin, end - begin);
-		auto             it   = (std::ranges::find_if(
-			current->sub_commands,
-			[word](const Bot::CommandNode& node) constexpr
-			{
-				return (node.name == word);
-			}
-		));
-		if (it == current->sub_commands.end())
-		{
-			auto before = std::ranges::upper_bound(
-				current->sub_commands,
-				word,
-				std::less<std::string_view>(),
-				CommandNode::searchProj
-			);
-			auto node = current->sub_commands.emplace(before, std::string{word});
-			current   = &(*node);
-			begin     = end + 1;
-		}
-		else if (it->name == word)
-		{
-			current = &(*it);
-			begin   = end + 1;
-		}
-		else
-			begin = std::string_view::npos;
-	}
-	if constexpr (entry.num_parameters > 0)
-	{
-		std::copy_n(
-			_gatherParameters<N>(std::make_index_sequence<entry.num_parameters>()).begin(),
-			entry.num_parameters,
-			std::back_inserter(current->parameters)
-		);
-	}
-	current->user_permissions = entry.user_permissions;
-	current->bot_permissions  = entry.bot_permissions;
-	current->description      = entry.description;
-	current->handler          = entry.handler;
-	current->index            = N;
-}
-
-template <size_t... Is>
-constexpr auto Bot::_gatherCommands(std::index_sequence<Is...>) -> CommandNode
-{
-	CommandNode ret;
-
-	(_gatherCommand<Is>(ret), ...);
-	return (ret);
-}
-
-dpp::command_option Bot::_populateSubCommand(const CommandNode& node)
-{
-	dpp::command_option ret{
-		(node.sub_commands.empty() ? dpp::co_sub_command : dpp::co_sub_command_group),
-		std::string(node.name),
-		std::string(node.description)
-	};
-
-	_populateCommandOptions(ret, node);
-	for (const CommandNode& child : node.sub_commands)
-	{
-		ret.add_option(_populateSubCommand(child));
-	}
-	return (ret);
-}
-
-template <typename T>
-void Bot::_populateCommandOptions(T& cmd, const CommandNode& node) const
-{
-	for (const auto& param : node.parameters)
-	{
-		if (param.possible_types.size() > 1)
-		{
-			log("possible_types > 1 is unsupported");
-		}
-		else
-		{
-			dpp::command_option opt{
-				param.possible_types[0],
-				std::string(param.name),
-				std::string(param.description),
-				param.required
-			};
-
-			cmd.add_option(opt);
-		}
-	}
-}
-
-void Bot::_registerGuild(dpp::cluster *cluster, dpp::snowflake id)
-{
-	for (const auto& existing_cmd : cluster->guild_commands_get_sync(id))
-	{
-		auto it = std::ranges::find(
-			_commandTable.sub_commands,
-			existing_cmd.second.name,
-			[](const Bot::CommandNode& node) -> std::string_view
-			{
-				return (node.name);
-			}
-		);
-		if (it == _commandTable.sub_commands.end())
-			cluster->guild_command_delete(existing_cmd.second.id, id);
-	}
-	for (auto& node : _commandTable.sub_commands)
-	{
-		if (node.index < 0)
-		{
-			Bot::log(
-				LogLevel::ERROR,
-				"Error: command {} was gathered but not found in the command table",
-				_commandTable.name
-			);
-			continue;
-		}
-		dpp::slashcommand cmd(std::string{node.name}, std::string{node.description}, _bot->me.id);
-		cmd.set_default_permissions(node.user_permissions);
-		_populateCommandOptions(cmd, node);
-		for (const CommandNode& child : node.sub_commands)
-		{
-			cmd.add_option(_populateSubCommand(child));
-		}
-		_bot->guild_command_create(cmd, id);
-	}
-}
-
 void Bot::_onReadyEvent(const dpp::ready_t &event)
 {
 	static const std::array activities = std::to_array<dpp::activity>(
@@ -583,6 +450,8 @@ void Bot::_onReadyEvent(const dpp::ready_t &event)
 	// TODO: cleanup
 	if (dpp::run_once<struct registerBotCommands>())
 	{
+		event.from->creator->global_bulk_command_create(command::get_api_commands(event.from->creator->me.id));
+		/*
 		_commandTable =
 			_gatherCommands(std::make_index_sequence<std::tuple_size_v<decltype(COMMAND_TABLE)>>());
 		#ifdef B12_DEBUG
@@ -604,100 +473,8 @@ void Bot::_onReadyEvent(const dpp::ready_t &event)
 					_registerGuild(event.from->creator, id);
 				}
 			}
-		}
+		}*/
 	}
-}
-
-auto Bot::_findCommand(
-	const dpp::slashcommand_t& e,
-	const CommandNode&         node,
-	const std::string*&        cmd_name,
-	const auto&                command_options,
-	dpp::interaction&          interact
-) -> const CommandNode*
-{
-	auto it = std::ranges::lower_bound(
-		node.sub_commands,
-		*cmd_name,
-		std::less<std::string_view>(),
-		CommandNode::searchProj
-	);
-	if (it == std::end(node.sub_commands))
-	{
-		Bot::log(
-			LogLevel::INFO,
-			"user {} sent unknown command {}",
-			interact.get_issuing_user().format_username(),
-			interact.get_command_name()
-		);
-		return (nullptr);
-	}
-	for (const dpp::command_data_option& opt : command_options)
-	{
-		if (opt.type == dpp::co_sub_command_group || opt.type == dpp::co_sub_command)
-		{
-			cmd_name = &opt.name;
-			return (_findCommand(e, *it, cmd_name, opt.options, interact));
-		}
-	}
-	if (!interact.app_permissions.has(it->bot_permissions))
-	{
-		dpp::message reply{
-			lang::DEFAULT.PERMISSION_BOT_MISSING.format(
-				interact.get_resolved_channel(interact.channel_id),
-				dpp::permission(it->bot_permissions)
-			)
-		};
-
-		reply.set_flags(dpp::message_flags::m_ephemeral);
-		e.reply(reply);
-		return (&(*it));
-	}
-	const auto& perms        = interact.resolved.member_permissions;
-	auto        member_perms = perms.find(interact.get_issuing_user().id);
-	if (
-		member_perms == perms.end() || !(member_perms->second.has(dpp::permissions::p_administrator) ||
-																		 member_perms->second.has(it->user_permissions)))
-	{
-		dpp::message reply{lang::DEFAULT.PERMISSION_USER_MISSING.format(it->user_permissions)};
-
-		#ifndef B12_DEBUG
-		reply.set_flags(dpp::message_flags::m_ephemeral);
-		#endif
-		e.reply(reply);
-		return (&(*it));
-	}
-	CommandHandler handler{e};
-
-	handler.exec(it->handler, std::span<const dpp::command_data_option>{command_options});
-	return (&(*it));
-}
-
-void Bot::_onSlashCommandEvent(const dpp::slashcommand_t& e)
-{
-	dpp::interaction         interaction  = e.command;
-	dpp::command_interaction cmd_data     = interaction.get_command_interaction();
-	const std::string*       command_name = &cmd_data.name;
-
-	#ifdef B12_DEBUG
-	if (auto debug_channel_json = _config.find("debug_channel"); debug_channel_json != _config.end())
-	{
-		if (debug_channel_json->is_string())
-		{
-			auto&  as_str = debug_channel_json->get_ref<const std::string&>();
-			uint64 id     = stoull(as_str); // TODO: ERROR HANDLING
-
-			if (interaction.channel_id != dpp::snowflake{id})
-			{
-				e.reply(
-					dpp::message{lang::DEFAULT.DEV_WRONG_CHANNEL.format(id)}.set_flags(dpp::m_ephemeral)
-				);
-				return;
-			}
-		}
-	}
-	#endif
-	_findCommand(e, _commandTable, command_name, cmd_data.options, interaction);
 }
 
 auto Bot::fetchGuild(dpp::snowflake id) -> observer_ptr<Guild>

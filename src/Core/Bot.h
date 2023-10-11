@@ -111,50 +111,7 @@ namespace B12
 		static inline std::unique_ptr<PokeAPICache> pokemon_cache = nullptr;
 
 	private:
-		struct CommandParameter
-		{
-			std::string_view                          name;
-			std::string_view                          description;
-			std::span<const dpp::command_option_type> possible_types;
-			bool                                      required;
-		};
-
-		struct CommandNode
-		{
-			std::string                   name{};
-			std::string                   description{};
-			int                           index{-1};
-			std::vector<CommandNode>      sub_commands{};
-			std::vector<CommandParameter> parameters{};
-			uint64_t                      user_permissions{COMMAND_DEFAULT_USER_PERMISSIONS};
-			uint64_t                      bot_permissions{COMMAND_DEFAULT_BOT_PERMISSIONS};
-			command_fun                   handler{nullptr};
-
-			bool operator==(const CommandNode& rhs) const noexcept
-			{
-				return (name == rhs.name);
-			}
-
-			auto operator<=>(const CommandNode& rhs) const noexcept
-			{
-				return (name <=> rhs.name);
-			}
-
-			static std::string_view searchProj(const CommandNode& node) noexcept
-			{
-				return (node.name);
-			};
-
-			bool operator==(std::string_view name_) const noexcept
-			{
-				return (name == name_);
-			}
-		};
-
 		std::string _fetchToken(const char* console_arg) const;
-
-		template <typename T>
-		void _populateCommandOptions(T& cmd, const CommandNode& node) const;
 
 		static Bot* _s_instance;
 
@@ -176,31 +133,6 @@ namespace B12
 		void _onReadyEvent(const dpp::ready_t& e);
 		void _onSlashCommandEvent(const dpp::slashcommand_t& e);
 		void _onMessageCreateEvent(const dpp::message_create_t& e);
-
-		const CommandNode *_findCommand(
-			const dpp::slashcommand_t& e,
-			const CommandNode&         node,
-			const std::string*&        cmd_name,
-			const auto&                command_options,
-			dpp::interaction&          interact
-		);
-
-		//void _setupSubCommands(const Command &cmd);
-		template <size_t CommandN, size_t N>
-		static constexpr CommandParameter _gatherParameter();
-
-		template <size_t CommandN, size_t... Is>
-		static constexpr std::array<CommandParameter, sizeof...(Is)> _gatherParameters(
-			std::index_sequence<Is...>
-		);
-
-		template <size_t N>
-		static constexpr void _gatherCommand(CommandNode& node);
-
-		template <size_t... Is>
-		static constexpr CommandNode _gatherCommands(std::index_sequence<Is...>);
-
-		dpp::command_option _populateSubCommand(const CommandNode& node);
 
 		// TODO: rewrite this mess so LoggerSystem owns each logger, each logger owns its file
 		std::fstream          _logFile{};
@@ -238,7 +170,6 @@ namespace B12
 		cache<MultiCommandProcess> _MCPs{};
 
 		dpp::json   _config{};
-		CommandNode _commandTable{"base"};
 		std::mutex  _MCPmutex{};
 	};
 } // namespace B12

@@ -73,7 +73,7 @@ CommandResponse CommandHandler::command<"pokemon dex">(
 	for (const auto &s : json["stats"])
 	{
 		std::string stat = s["stat"]["name"];
-		embed.add_field(stat, fmt::format("{}", s["base_stat"], true));
+		embed.add_field(stat, fmt::format("{}", s["base_stat"].get<int>(), true));
 	}
 	foo.embeds.push_back(std::move(embed));
 	response = {CommandResponse::Success{}, {std::move(foo)}};

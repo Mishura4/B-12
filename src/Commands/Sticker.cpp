@@ -157,14 +157,14 @@ CommandResponse CommandHandler::command<"server sticker grab">(
 	if (!message_id)
 		return {CommandResponse::UsageError{}, {{"Error: could not parse message id"}}};
 
-	constexpr auto task = [](dpp::cluster *cluster, dpp::interaction_create_t event, dpp::snowflake message_id, dpp::snowflake channel_id) -> dpp::task<void>
+	constexpr auto task = [](dpp::cluster *cluster, dpp::interaction_create_t event, dpp::snowflake message_id, dpp::snowflake channel_id) -> dpp::job
 	{
-		dpp::confirmation_callback_t confirm = co_await dpp::awaitable(event, &dpp::interaction_create_t::thinking, false);
+		dpp::confirmation_callback_t confirm = co_await event.co_thinking();
 
 		if (confirm.is_error())
 			co_return;
 
-		confirm = co_await dpp::awaitable{&event, &dpp::interaction_create_t::get_original_response};
+		confirm = co_await event.co_get_original_response();
 
 		if (confirm.is_error())
 			co_return;
@@ -195,7 +195,7 @@ CommandResponse CommandHandler::command<"server sticker grab">(
 
 		for (const dpp::sticker& s : message.stickers)
 		{
-			auto download_result = co_await cluster->co_request(s.get_url(), dpp::m_get);
+			decltype(auto) download_result = co_await cluster->co_request(s.get_url(), dpp::m_get);
 
 			if (download_result.status >= 300)
 			{
@@ -220,7 +220,7 @@ CommandResponse CommandHandler::command<"server sticker grab">(
 			dpp::sticker to_add;
 			auto         resize_result = image_process(sticker_data);
 
-			to_add.filecontent  = std::move(download_result.body);
+			to_add.filecontent  = sticker_data;
 			to_add.guild_id     = event.command.guild_id;
 			to_add.sticker_user = cluster->me;
 			to_add.name         = grabbed_sticker.name;

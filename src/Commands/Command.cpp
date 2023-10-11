@@ -91,42 +91,56 @@ auto task = dpp::task<bool>(std::move(test(cluster, std::get<0>(this->_source.so
 B12::log(LogLevel::BASIC, "boom");
 std::cout << "boom" << std::endl;*/
 
-template <>
-CommandResponse CommandHandler::command<"meow">(
-	command_option_view /*options*/
+#include "commands.h"
 
-)
+dpp::coroutine<command::response> command::meow(dpp::interaction_create_t const &event)
 {
 	static constexpr auto INTRO_URL =
 		"https://cdn.discordapp.com/attachments/1066393377236594699/1066779084845220020/b-12.mp4"sv;
 
-	return {CommandResponse::Success{}, dpp::message{ std::string{INTRO_URL} }};
+	auto reply = dpp::message{ std::string{INTRO_URL} };
+	std::string id = event.command.id.str();
+
+	reply.add_component(
+		dpp::component{}.add_component(dpp::component{}.set_type(dpp::cot_button).set_label("click me (it wont work)").set_id(id))
+	);
+
+		auto a = event.co_reply(reply);
+
+		auto result = co_await dpp::when_any{
+			event.from->creator->on_button_click.when([&id](dpp::button_click_t const &b) { return b.custom_id == id; }),
+			event.from->creator->co_sleep(5),
+			[](dpp::cluster *c, dpp::async<> r) -> dpp::task<void> {
+				dpp::message m = (co_await r).get<dpp::message>();
+
+				co_await c->co_message_edit(m.set_content("test test"));
+			}(event.from->creator, std::move(a))
+		};
+
+		if (result.index() == 0) {
+			co_return response::edit(fmt::format("you clicked the button with the id {}", result.get<0>().custom_id));
+		}
+		else if (result.index() == 1)
+			co_return response::edit("expired :)");
+		else if (result.index() == 2)
+			co_return response::edit("someone posted a message i'm scared");
 }
 
-template <>
-CommandResponse CommandHandler::command<"bigmoji">(
-	command_option_view options
-)
+dpp::coroutine<command::response> command::bigmoji(dpp::interaction_create_t const &event, const std::string &emoji)
 {
 	using namespace std::string_view_literals;
 
-	if (options.empty() || !std::holds_alternative<std::string>(options[0].value))
-		return {CommandResponse::UsageError{}, {{"Error: wrong parameter type"}}};
-	const std::string& input = std::get<std::string>(options[0].value);
 	std::regex pattern{"^(?:\\s*)<(a?):([a-zA-Z0-9_]+):([0-9]+)>(?:\\s*)$"};
 	std::string match;
 	std::match_results<std::string::const_iterator> results{};
-	if (!std::regex_match(input, results, pattern) || results.size() < 4)
-		return {CommandResponse::UsageError{}, {{"Please give a custom emoji as the parameter."}}};
+	if (!std::regex_match(emoji, results, pattern) || results.size() < 4)
+		co_return {{"Please give a custom emoji as the parameter."}};
 	auto id = results[3];
-	return CommandResponse{
-		CommandResponse::Success{},
-		{
-			format("https://cdn.discordapp.com/emojis/{}{}?size=256&quality=lossless",
-			std::string_view{id.first, id.second},
-			(results[1].length() ? ".gif"sv : ".webp"sv))
-		}
-	};
+	co_return {{
+		format("https://cdn.discordapp.com/emojis/{}{}?size=256&quality=lossless",
+		std::string_view{id.first, id.second},
+		(results[1].length() ? ".gif"sv : ".webp"sv))
+	}};
 }
 
 template <>
@@ -240,8 +254,7 @@ CommandResponse CommandHandler::command<"poll">(
 				co_return;
 			}
 		}
-		auto api_call = dpp::awaitable(&event, &dpp::interaction_create_t::get_original_response);
-		confirm = co_await dpp::awaitable{std::move(api_call)};
+		confirm = co_await event.co_get_original_response();
 		if (confirm.is_error())
 			co_return;
 		auto message = confirm.get<dpp::message>();

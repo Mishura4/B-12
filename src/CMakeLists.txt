@@ -20,7 +20,11 @@ set(COMMAND_SOURCES
     Sticker.cpp
     Study.cpp
     Study.h
-    Ban.cpp
+    ban.cpp
+    commands.h
+    commands.cpp
+    command_handler.h
+    command_table.h
 )
 
 set(POKEMON_SOURCES

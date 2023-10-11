@@ -27,91 +27,42 @@ namespace
 	}*/
 }
 
-template <>
-CommandResponse CommandHandler::command<"study">(
-	command_option_view /*options*/
+#include "commands.h"
 
-)
+dpp::coroutine<command::response> command::study(dpp::interaction_create_t const &event)
 {
-	Guild*          guild = Bot::fetchGuild(_guild_id);
+	Guild*          guild = Bot::fetchGuild(event.command.guild_id);
 	CommandResponse reply;
 
 	if (!guild->studyRole() || !guild->studyChannel())
-		return {CommandResponse::InternalError{}, {lang::DEFAULT.ERROR_STUDY_BAD_SETTINGS}};
+		co_return {response::usage_error(lang::DEFAULT.ERROR_STUDY_BAD_SETTINGS)};
+	auto *cluster = event.from->creator;
 	const dpp::role&         studyRole = guild->studyRole().value();
-	const dpp::guild_member& issuer    = *_member_issuer;
+	const dpp::guild_member& issuer    = event.command.member;
 
-	_source.sendThink(true);
-	if (std::ranges::find(issuer.roles, dpp::snowflake(studyRole.id)) != issuer.roles.end())
-	{
-		// user has the study role, remove it
-		AsyncExecutor<dpp::confirmation> roleExecutor(
-			[&](const dpp::confirmation&)
-			{
-				reply = {CommandResponse::Success{}, {lang::DEFAULT.COMMAND_STUDY_REMOVED}};
-			},
-			[&](const dpp::error_info& error)
-			{
-				reply = {CommandResponse::APIError{}, {error.message}};
-			}
-		);
-
-		roleExecutor(
-			&dpp::cluster::guild_member_remove_role,
-			&Bot::bot(),
-			guild->dppGuild().id,
-			issuer.user_id,
-			studyRole.id
-		);
-
-		roleExecutor.wait();
-		return (reply);
-	}
-	else
-	{
-		// user does not have study role, add it
-		AsyncExecutor<dpp::confirmation> roleExecutor(
-			[&](const dpp::confirmation&)
-			{
-				reply = {
-					CommandResponse::Success{},
-					{lang::DEFAULT.COMMAND_STUDY_ADDED.format(*guild->studyChannel())}
-				};
-			},
-			[&](const dpp::error_info& error)
-			{
-				reply = {CommandResponse::APIError{}, {error.message}};
-			}
-		);
-
-		roleExecutor(
-			&dpp::cluster::guild_member_add_role,
-			&Bot::bot(),
-			guild->dppGuild().id,
-			issuer.user_id,
-			studyRole.id
-		);
-
-		roleExecutor.wait();
-		if (_source.isInteraction())
-		{
-			const auto& interaction_data = _getInteraction().event.command.data;
-
-			if (std::holds_alternative<dpp::command_interaction>(interaction_data))
-			{
-				const auto& slash_command = std::get<dpp::command_interaction>(interaction_data);
-
-				reply.content.other_messages.emplace_back(
-					_channel->id,
-					fmt::format(
-						"{} was sent to the {} realm. <a:nodyesnod:1078439588021944350>",
-						issuer.get_mention(),
-						slash_command.get_mention()
-					)
-				).set_reference(_getInteraction().event.command.id);
-			}
+	auto thinking = event.co_thinking(true);
+	if (std::ranges::find(issuer.get_roles(), studyRole.id) != issuer.get_roles().end()) {
+		auto&& confirm = co_await event.from->creator->co_guild_member_remove_role(event.command.guild_id, event.command.usr.id, studyRole.id);
+		co_await thinking;
+		if (confirm.is_error()) {
+			cluster->log(dpp::ll_error, fmt::format("could not remove study role from {}: {}", event.command.usr.format_username(), confirm.get_error().message));
+			co_return {response::internal_error("Could not remove the study role, am I missing permissions?"), response::action_t::edit};
 		}
-		return (reply);
+		co_return {response::success(), response::action_t::edit};
+	}
+	else {
+		auto&& confirm = co_await event.from->creator->co_guild_member_add_role(event.command.guild_id, event.command.usr.id, studyRole.id);
+		co_await thinking;
+		if (confirm.is_error()) {
+			cluster->log(dpp::ll_error, fmt::format("could not add study role to {}: {}", event.command.usr.format_username(), confirm.get_error().message));
+			co_return {response::internal_error("Could not remove the study role, am I missing permissions?"), response::action_t::edit};
+		}
+		event.from->creator->message_create(dpp::message{event.command.channel_id, fmt::format(
+			"{} was sent to the {} realm. <a:nodyesnod:1078439588021944350>",
+			issuer.get_mention(),
+			std::get<dpp::command_interaction>(event.command.data).get_mention()
+		)});
+		co_return {{lang::DEFAULT.COMMAND_STUDY_ADDED.format(*guild->studyChannel())}, response::action_t::edit};
 	}
 }
 

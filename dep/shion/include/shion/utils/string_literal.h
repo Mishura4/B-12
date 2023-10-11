@@ -3,12 +3,13 @@
 
 #include <utility>
 #include <algorithm>
+#include <string_view>
 
 namespace shion
 {
 	template <std::size_t N>
 	struct u8string_literal;
-	
+
   template <typename CharT, size_t N>
   struct basic_string_literal
   {
@@ -22,14 +23,14 @@ namespace shion
   		std::ranges::copy_n(str, N, data);
   		data[N] = 0;
   	}
-    
+
     template <typename OtherChar, size_t... Is>
      requires (sizeof(CharT) >= sizeof(OtherChar))
     constexpr basic_string_literal(const OtherChar *str, std::index_sequence<Is...>) :
       data{str[Is]...}
     {
     }
-    
+
   	template <typename OtherChar>
   	  requires (sizeof(CharT) >= sizeof(OtherChar))
     constexpr basic_string_literal(const OtherChar(&arr)[N + 1]) :
@@ -42,7 +43,6 @@ namespace shion
   	constexpr basic_string_literal(const basic_string_literal<OtherChar, N> &rhs) :
       basic_string_literal{rhs.data, std::make_index_sequence<N>()}
   	{
-  		
   	}
 
     template <typename CharT2, size_t N2>
@@ -60,7 +60,7 @@ namespace shion
         return (true);
       }
     }
-    
+
     template <typename CharT2, size_t N2>
   	constexpr bool strict_equals(const basic_string_literal<CharT2, N2> &other) const
   	{
@@ -79,14 +79,18 @@ namespace shion
         return (std::ranges::lexicographical_compare(data, other.data));
     }
 
-    constexpr operator std::string_view() const
+    constexpr operator std::basic_string_view<CharT>() const
     {
       return {data, N};
     }
 
-    constexpr operator std::string() const
+    constexpr operator std::basic_string<CharT>() const
     {
       return {data, N};
+    }
+
+    friend constexpr auto format_as(const basic_string_literal &t) noexcept {
+      return std::basic_string_view<CharT>{t};
     }
 
     CharT data[N + 1];
@@ -230,22 +234,6 @@ namespace shion
   }
 }
 
-namespace fmt
-{
-	template <typename T>
-	requires (shion::is_string_literal<T>)
-	struct formatter<T> : public fmt::formatter<std::basic_string_view<typename T::char_type>>
-	{
-		using fmt::formatter<std::basic_string_view<typename T::char_type>>::parse;
-		
-		template <typename FormatContext>
-		auto format(const T &literal, FormatContext &ctx) const -> decltype(ctx.out())
-		{
-			return (fmt::formatter<std::basic_string_view<typename T::char_type>>::format(literal, ctx));
-		}
-	};
-}
-
 #ifdef __cpp_lib_format
 namespace std
 {
@@ -254,7 +242,7 @@ namespace std
 	struct formatter<T> : public std::formatter<std::basic_string_view<typename T::char_type>>
 	{
 		using std::formatter<std::basic_string_view<typename T::char_type>>::parse;
-		
+
 		template <typename FormatContext>
 		auto format(const T &literal, FormatContext &ctx) const -> decltype(ctx.out())
 		{

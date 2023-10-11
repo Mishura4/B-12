@@ -78,8 +78,6 @@ constexpr inline auto noop_command = [](auto...) -> CommandResponse
 static inline constexpr auto test = _::is_command_option<CommandOption<"role", 1>>;
 
 inline constexpr std::tuple COMMAND_TABLE = std::make_tuple(
-	make_command<"meow">("meow to me!"),
-	make_command<"study">("Toggle study mode", 0, dpp::p_manage_roles),
 	make_command<"bigmoji">(
 		"Make an emoji big!",
 		dpp::p_use_external_emojis,

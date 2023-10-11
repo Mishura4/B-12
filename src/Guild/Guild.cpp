@@ -68,8 +68,8 @@ Guild::Guild(dpp::snowflake id) :
 {
 	try
 	{
-		_guild = Bot::bot().guild_get_sync(id);
-		_me    = Bot::bot().guild_get_member_sync(id, Bot::bot().me.id);
+		_guild = *dpp::find_guild(id);
+		_me    = dpp::find_guild_member(id, Bot::bot().me.id);
 	}
 	catch (const dpp::rest_exception& e)
 	{
@@ -207,7 +207,7 @@ bool Guild::handleButtonClick(const dpp::button_click_t& event)
 	{
 		CommandHandler handler{event};
 
-		handler.exec<"study">({});
+		//handler.exec<"study">({});
 		return (true);
 	}
 	if (event.custom_id.starts_with(button_action_prefix))

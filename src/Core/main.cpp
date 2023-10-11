@@ -47,6 +47,7 @@ namespace
 			return (TRUE);
 		};
 		SetConsoleCtrlHandler(handler_routine, TRUE);
+		#else
 		#endif
 
 		// TODO: POSIX
@@ -60,7 +61,7 @@ int main(int argc, char* argv[])
 	const char*    token{nullptr};
 	constexpr auto run = [](const char* _token)
 	{
-		std::unique_lock lock(app_mutex);
+		std::scoped_lock lock(app_mutex);
 
 		B12::Bot bot(_token);
 
