@@ -1,21 +1,28 @@
 [submodule "dep/boost_pfr"]
 	path = dep/boost_pfr
 	url = https://github.com/boostorg/pfr.git
+	branch = master
 [submodule "dep/magic_enum"]
 	path = dep/magic_enum
 	url = https://github.com/Neargye/magic_enum.git
+	branch = master
 [submodule "dep/fmt"]
 	path = dep/fmt
 	url = https://github.com/fmtlib/fmt.git
+	branch = master
 [submodule "dep/expected-lite"]
 	path = dep/expected-lite
 	url = https://github.com/martinmoene/expected-lite.git
+	branch = master
 [submodule "dep/CImg"]
 	path = dep/CImg
 	url = https://github.com/GreycLab/CImg.git
+	branch = master
 [submodule "dep/libpng"]
 	path = dep/libpng
 	url = https://github.com/glennrp/libpng
+	branch = master
 [submodule "dep/DPP-PRs"]
 	path = dep/DPP
 	url = https://github.com/Mishura4/DPP-PRs.git
+	branch = dev

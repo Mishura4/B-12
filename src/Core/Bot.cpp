@@ -382,50 +382,7 @@ int Bot::run()
 
 void Bot::_onMessageCreateEvent(const dpp::message_create_t& e)
 {
-	const auto& message = e.msg;
-
-	if (auto message_reply_id = message.message_reference.message_id; message_reply_id > 0)
-	{
-		std::scoped_lock MCPlock{_MCPmutex};
-
-		if (auto it = _MCPs.find(message_reply_id); it != _MCPs.end())
-		{
-			MultiCommandProcess* mcp = it->second.get();
-
-			assert(mcp);
-			if (!mcp->processing)
-			{
-				// TODO: move expiration into MCP callback
-				mcp->processing = true;
-				mcp->expiration = _lastUpdate + std::chrono::seconds(60);
-				mcp->step(message);
-			}
-			else
-			{
-				dpp::message reply("This operation is already running!");
-
-				reply.set_flags(dpp::m_ephemeral);
-				e.reply(reply);
-			}
-		}
-	}
 }
-
-void Bot::MCPUpdate(dpp::snowflake id)
-{
-	std::scoped_lock MCPlock{_s_instance->_MCPmutex};
-	auto             it = _s_instance->_MCPs.find(id);
-
-	if (it == _s_instance->_MCPs.end() || !it->second)
-	{
-		Bot::log("could not find MCP with id {}", id);
-		return;
-	}
-	std::unique_ptr mcp = std::move(it->second);
-	_s_instance->_MCPs.emplace(mcp->master->id, std::move(mcp));
-	_s_instance->_MCPs.erase(id);
-}
-
 void Bot::_onReadyEvent(const dpp::ready_t &event)
 {
 	static const std::array activities = std::to_array<dpp::activity>(
@@ -447,17 +404,41 @@ void Bot::_onReadyEvent(const dpp::ready_t &event)
 				"abort() speedrun Any%",
 				"test",
 				"https://www.youtube.com/watch?v=qwxZU0VkWII&pp=ygUEbWVvdw"
-			}
+			},
+			{
+				dpp::at_streaming,
+				"D++'s test subject",
+				"test",
+				"https://www.youtube.com/watch?v=qwxZU0VkWII&pp=ygUEbWVvdw"
+			},
+			{
+				dpp::at_streaming,
+				"Coroutine pioneer",
+				"test",
+				"https://www.youtube.com/watch?v=qwxZU0VkWII&pp=ygUEbWVvdw"
+			},
 		}
 	);
 	event.from->creator->set_presence(
 		{dpp::ps_online, activities[static_cast<size_t>(std::rand()) % (activities.size())]}
 	);
-	
+	event.from->creator->start_timer([cluster = event.from->creator](dpp::timer) {
+		if (std::rand() % 30 == 0) {
+			cluster->set_presence(
+				{dpp::ps_online, activities[static_cast<size_t>(std::rand()) % (activities.size())]}
+			);
+		}
+	}, 60);
 	// TODO: cleanup
 	if (dpp::run_once<struct registerBotCommands>())
 	{
-		event.from->creator->global_bulk_command_create(command::get_api_commands(event.from->creator->me.id));
+		std::vector<dpp::slashcommand> v = command::get_api_commands(event.from->creator->me.id);
+#ifdef B12_DEBUG
+		for (dpp::slashcommand &s : v) {
+			s.name = "dev_" + s.name;
+		}
+#endif
+		event.from->creator->global_bulk_command_create(v);
 		/*
 		_commandTable =
 			_gatherCommands(std::make_index_sequence<std::tuple_size_v<decltype(COMMAND_TABLE)>>());

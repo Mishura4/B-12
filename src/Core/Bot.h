@@ -8,7 +8,6 @@
 
 #include "../Pokemon/PokemonAPI.h"
 
-#include "Commands/MultiCommandProcess.h"
 #include "Data/Database.h"
 #include "Guild/Guild.h"
 
@@ -101,8 +100,6 @@ namespace B12
 			return (_s_instance->_logger.isLogEnabled(level));
 		}
 
-		static void MCPUpdate(dpp::snowflake id);
-
 		static void stop() noexcept
 		{
 			_s_instance->_running = false;
@@ -167,7 +164,6 @@ namespace B12
 		using cache = std::unordered_map<dpp::snowflake, std::unique_ptr<T>>;
 
 		cache<Guild>               _guilds{};
-		cache<MultiCommandProcess> _MCPs{};
 
 		dpp::json   _config{};
 		std::mutex  _MCPmutex{};

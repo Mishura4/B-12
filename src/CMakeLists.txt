@@ -15,9 +15,7 @@ set(COMMAND_SOURCES
     CommandHandler.h
     CommandHandler.cpp
     CommandTable.h
-    MultiCommandProcess.cpp
-    MultiCommandProcess.h
-    Sticker.cpp
+    sticker.cpp
     Study.cpp
     Study.h
     ban.cpp
