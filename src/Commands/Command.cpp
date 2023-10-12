@@ -23,7 +23,7 @@ dpp::coroutine<command::response> command::meow(dpp::interaction_create_t const 
 	co_return response::reply(reply);
 }
 
-dpp::coroutine<command::response> command::bigmoji(dpp::interaction_create_t const &event, const std::string &emoji)
+dpp::coroutine<command::response> command::bigmoji(dpp::interaction_create_t const &/* event */, const std::string &emoji)
 {
 	using namespace std::string_view_literals;
 
@@ -33,9 +33,9 @@ dpp::coroutine<command::response> command::bigmoji(dpp::interaction_create_t con
 	if (!std::regex_match(emoji, results, pattern) || results.size() < 4)
 		co_return {{"Please give a custom emoji as the parameter."}};
 	auto id = results[3];
-	co_return {{
-		format("https://cdn.discordapp.com/emojis/{}{}?size=256&quality=lossless",
+	co_return command::response::reply(fmt::format(
+		"https://cdn.discordapp.com/emojis/{}{}?size=256&quality=lossless",
 		std::string_view{id.first, id.second},
-		(results[1].length() ? ".gif"sv : ".webp"sv))
-	}};
+		(results[1].length() ? ".gif"sv : ".webp"sv)
+	));
 }

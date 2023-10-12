@@ -59,7 +59,7 @@ namespace B12
 		consteval static auto typeId()
 		{
 			return (PossibleTypes::type_index<T>);
-		};
+		}
 
 		struct Content
 		{

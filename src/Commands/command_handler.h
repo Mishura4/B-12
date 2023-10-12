@@ -108,7 +108,7 @@ namespace command {
 			return std::string_view{*this} == sv;
 		}
 
-		operator std::string_view() const noexcept { return std::string_view{str, sz}; }
+		constexpr operator std::string_view() const noexcept { return std::string_view{str, sz}; }
 
 		const char* str;
 		size_t sz;
@@ -129,10 +129,10 @@ namespace command {
 	template <typename T>
 	struct command_option {
 		using type = T;
+		constexpr static auto api_type = option_api_type<command_data_type<T>>;
+		constexpr static bool is_optional = is_optional_v<T>;
 
 		command_option_info info;
-		dpp::command_option_type api_type = option_api_type<command_data_type<T>>;
-		bool is_optional = is_optional_v<T>;
 	};
 
 	template <typename R, typename... Args>
@@ -254,7 +254,7 @@ namespace command {
 	template <typename R>
 	struct command_handler<dpp::slashcommand_t, R> {
 		struct command_node {
-			using parser_t = dpp::coroutine<command_result<R>> (*)(dpp::slashcommand_t const &event, std::span<dpp::command_data_option const>);
+			using parser_t = std::function<dpp::coroutine<command_result<R>>(dpp::slashcommand_t const &event, std::span<dpp::command_data_option const>)>;
 
 			std::string_view name{};
 			parser_t parser{};
@@ -263,8 +263,8 @@ namespace command {
 			command_node const* search(string_view cmd) const;
 		};
 
-		template <const auto &CommandTable>
-		static command_handler<dpp::slashcommand_t, R> from_command_table();
+		template <typename... Commands>
+		static command_handler<dpp::slashcommand_t, R> from_command_table(const command_table<Commands...> &table);
 
 		command_node root{};
 
@@ -316,37 +316,35 @@ namespace command {
 	}
 
 	namespace detail {
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		struct store_param_s;
 
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		requires (std::convertible_to<command_data_type<Type>, std::string_view>) // stringoid
-		struct store_param_s<Type, OptionName, OptionType> {
-			Type operator()(std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &) const {
-				constexpr bool optional = is_optional_v<Type>;
-
+		struct store_param_s<command_option<Type>> {
+			Type operator()(const command_option<Type> &option, std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &) const {
 				for (dpp::command_data_option const &opt : opts) {
-					if (opt.type != OptionType || opt.name != OptionName)
+					if (opt.type != command_option<Type>::api_type || opt.name != option.info.name)
 						continue;
 
 					return std::get<std::string>(opt.value);
 				}
-				if constexpr (optional) {
+				if constexpr (command_option<Type>::is_optional) {
 					return std::nullopt;
 				} else {
-					throw dpp::parse_exception("missing option " + std::string{OptionName});
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
 				}
 			}
 		};
 
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		requires (std::same_as<command_data_type<Type>, dpp::user>)
-		struct store_param_s<Type, OptionName, OptionType> {
-			Type operator()(std::span<dpp::command_data_option const> opts, const dpp::command_resolved &resolved) const {
+		struct store_param_s<command_option<Type>> {
+			Type operator()(const command_option<Type> &option, std::span<dpp::command_data_option const> opts, const dpp::command_resolved &resolved) const {
 				constexpr bool optional = is_optional_v<Type>;
 
 				for (dpp::command_data_option const &opt : opts) {
-					if (opt.type != OptionType || opt.name != OptionName)
+					if (opt.type != command_option<Type>::api_type || opt.name != option.name)
 						continue;
 
 					dpp::snowflake id = std::get<dpp::snowflake>(opt.value);
@@ -358,26 +356,26 @@ namespace command {
 						return it->second;
 					} else {
 						if (it == resolved.users.end()) [[unlikely]]
-							throw dpp::parse_exception("could not resolve option " + std::string{OptionName});
+							throw dpp::parse_exception("could not resolve option " + std::string{option.info.name});
 						return it->second;
 					}
 				}
 				if constexpr (optional) {
 					return std::nullopt;
 				} else {
-					throw dpp::parse_exception("missing option " + std::string{OptionName});
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
 				}
 			}
 		};
 
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		requires (std::same_as<command_data_type<Type>, dpp::guild_member>)
-		struct store_param_s<Type, OptionName, OptionType> {
-			Type operator()(std::span<dpp::command_data_option const> opts, const dpp::command_resolved &resolved) const {
+		struct store_param_s<command_option<Type>> {
+			Type operator()(const command_option<Type> &option, std::span<dpp::command_data_option const> opts, const dpp::command_resolved &resolved) const {
 				constexpr bool optional = is_optional_v<Type>;
 
 				for (dpp::command_data_option const &opt : opts) {
-					if (opt.type != OptionType || opt.name != OptionName)
+					if (opt.type != command_option<Type>::api_type || opt.name != option.info.name)
 						continue;
 
 					dpp::snowflake id = std::get<dpp::snowflake>(opt.value);
@@ -389,26 +387,26 @@ namespace command {
 						return it->second;
 					} else {
 						if (it == resolved.members.end()) [[unlikely]]
-							throw dpp::parse_exception("could not resolve option " + std::string{OptionName});
+							throw dpp::parse_exception("could not resolve option " + std::string{option.info.name});
 						return it->second;
 					}
 				}
 				if constexpr (optional) {
 					return std::nullopt;
 				} else {
-					throw dpp::parse_exception("missing option " + std::string{OptionName});
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
 				}
 			}
 		};
 
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		requires (std::same_as<command_data_type<Type>, resolved_user>)
-		struct store_param_s<Type, OptionName, OptionType> {
-			Type operator()(std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &resolved) const {
+		struct store_param_s<command_option<Type>> {
+			Type operator()(const command_option<Type> &option, std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &resolved) const {
 				constexpr bool optional = is_optional_v<Type>;
 
 				for (dpp::command_data_option const &opt : opts) {
-					if (opt.type != OptionType || opt.name != OptionName)
+					if (opt.type != command_option<Type>::api_type || opt.name != option.info.name)
 						continue;
 
 					dpp::snowflake id = std::get<dpp::snowflake>(opt.value);
@@ -419,7 +417,7 @@ namespace command {
 							return std::nullopt;
 					} else {
 						if (user_it == resolved.users.end()) [[unlikely]]
-							throw dpp::parse_exception("could not resolve option " + std::string{OptionName});
+							throw dpp::parse_exception("could not resolve option " + std::string{option.info.name});
 					}
 
 					if (auto member_it = resolved.members.find(id); member_it == resolved.members.end())
@@ -432,19 +430,19 @@ namespace command {
 				if constexpr (optional) {
 					return std::nullopt;
 				} else {
-					throw dpp::parse_exception("missing option " + std::string{OptionName});
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
 				}
 			}
 		};
 
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		requires (std::same_as<command_data_type<Type>, dpp::role>)
-		struct store_param_s<Type, OptionName, OptionType> {
-			Type operator()(std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &resolved) const {
+		struct store_param_s<command_option<Type>> {
+			Type operator()(const command_option<Type> &option, std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &resolved) const {
 				constexpr bool optional = is_optional_v<Type>;
 
 				for (dpp::command_data_option const &opt : opts) {
-					if (opt.type != OptionType || opt.name != OptionName)
+					if (opt.type != command_option<Type>::api_type || opt.name != option.info.name)
 						continue;
 
 					dpp::snowflake id = std::get<dpp::snowflake>(opt.value);
@@ -457,26 +455,26 @@ namespace command {
 						return it->second;
 					} else {
 						if (it == resolved.roles.end()) [[unlikely]]
-							throw dpp::parse_exception("could not resolve option " + std::string{OptionName});
+							throw dpp::parse_exception("could not resolve option " + std::string{option.info.name});
 						return it->second;
 					}
 				}
 				if constexpr (optional) {
 					return std::nullopt;
 				} else {
-					throw dpp::parse_exception("missing option " + std::string{OptionName});
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
 				}
 			}
 		};
 
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		requires (std::same_as<command_data_type<Type>, dpp::channel>)
-		struct store_param_s<Type, OptionName, OptionType> {
-			Type operator()(std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &resolved) const {
+		struct store_param_s<command_option<Type>> {
+			Type operator()(const command_option<Type> &option, std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &resolved) const {
 				constexpr bool optional = is_optional_v<Type>;
 
 				for (dpp::command_data_option const &opt : opts) {
-					if (opt.type != OptionType || opt.name != OptionName)
+					if (opt.type != command_option<Type>::api_type || opt.name != option.info.name)
 						continue;
 
 					dpp::snowflake id = std::get<dpp::snowflake>(opt.value);
@@ -489,26 +487,26 @@ namespace command {
 						return it->second;
 					} else {
 						if (it == resolved.channels.end()) [[unlikely]]
-							throw dpp::parse_exception("could not resolve option " + std::string{OptionName});
+							throw dpp::parse_exception("could not resolve option " + std::string{option.info.name});
 						return it->second;
 					}
 				}
 				if constexpr (optional) {
 					return std::nullopt;
 				} else {
-					throw dpp::parse_exception("missing option " + std::string{OptionName});
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
 				}
 			}
 		};
 
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		requires (std::same_as<command_data_type<Type>, bool>)
-		struct store_param_s<Type, OptionName, OptionType> {
-			Type operator()(std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &) const {
+		struct store_param_s<command_option<Type>> {
+			Type operator()(const command_option<Type> &option, std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &) const {
 				constexpr bool optional = is_optional_v<Type>;
 
 				for (dpp::command_data_option const &opt : opts) {
-					if (opt.type != OptionType || opt.name != OptionName)
+					if (opt.type != command_option<Type>::api_type || opt.name != option.info.name)
 						continue;
 
 					return std::get<bool>(opt.value);
@@ -516,7 +514,7 @@ namespace command {
 				if constexpr (optional) {
 					return std::nullopt;
 				} else {
-					throw dpp::parse_exception("missing option " + std::string{OptionName});
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
 				}
 			}
 		};
@@ -545,22 +543,21 @@ namespace command {
 		template <typename T>
 		concept duration_param = duration_param_s<T>::value;
 
-		template <typename Type, str_view OptionName, dpp::command_option_type OptionType>
+		template <typename Type>
 		requires (duration_param<command_data_type<Type>>)
-		struct store_param_s<Type, OptionName, OptionType> {
-			Type operator()(std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &) const {
+		struct store_param_s<command_option<Type>> {
+			Type operator()(const command_option<Type>& option, std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &) const {
 				constexpr bool optional = is_optional_v<Type>;
 
 				for (dpp::command_data_option const &opt : opts) {
-					if (opt.type != OptionType || opt.name != OptionName)
+					if (opt.type != command_option<Type>::api_type || opt.name != option.info.name)
 						continue;
-
 					return {};
 				}
 				if constexpr (optional) {
 					return std::nullopt;
 				} else {
-					throw dpp::parse_exception("missing option " + std::string{OptionName});
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
 				}
 			}
 		};
@@ -574,61 +571,61 @@ namespace command {
 		template <typename T>
 		concept command_info_concept = is_command_info_v<std::remove_cvref_t<T>>;
 
-		template <const command_info_concept auto& Command, typename R>
-		constexpr command_handler<dpp::slashcommand_t, R>::command_node make_command_node() requires (std::remove_cvref_t<decltype(Command)>::args_n == 0) {
+		template <typename T>
+		inline constexpr bool is_command_group_v = false;
+
+		template <typename... Args>
+		inline constexpr bool is_command_group_v<command_group<Args...>> = true;
+
+		template <typename T>
+		concept command_group_concept = is_command_group_v<std::remove_cvref_t<T>>;
+
+		template <typename R, typename T>
+		constexpr command_handler<dpp::slashcommand_t, R>::command_node make_command_node(const command_info<T> &cmd) {
 			return {
-				.name = Command.command_name,
-				.parser = [](dpp::slashcommand_t const &event, std::span<dpp::command_data_option const>) -> dpp::coroutine<command_result<R>> {
-					co_return command_result<R>{co_await std::invoke(Command.handler, event)};
-				},
-				.subcommands = {}
-			};
-		}
+				.name = cmd.command_name,
+				.parser = [&cmd](dpp::slashcommand_t const &event, std::span<dpp::command_data_option const> opts) -> dpp::coroutine<command_result<R>> {
+					if constexpr (command_info<T>::args_n > 0) {
+						using command_options = std::remove_cvref_t<decltype(cmd.options)>;
 
-		template <const command_info_concept auto& Command, typename R>
-		constexpr command_handler<dpp::slashcommand_t, R>::command_node make_command_node() requires (std::remove_cvref_t<decltype(Command)>::args_n > 0) {
-			return {
-				.name = Command.command_name,
-				.parser = [](dpp::slashcommand_t const &event, std::span<dpp::command_data_option const> opts) -> dpp::coroutine<command_result<R>> {
-					using command_options = std::remove_cvref_t<decltype(Command.options)>;
-
-					constexpr static auto get_args = []<size_t... Ns>(dpp::slashcommand_t const &event, std::span<dpp::command_data_option const> opts_, std::index_sequence<Ns...>) -> auto {
-						constexpr static auto get_param = []<size_t N>(dpp::slashcommand_t const &event, std::span<dpp::command_data_option const> opts_) {
-							constexpr auto &param = std::get<N>(Command.options);
-
-							return store_param_s<std::remove_cvref_t<decltype(param)>::type, param.info.name, param.api_type>{}(opts_, event.command.resolved);
+						constexpr static auto get_args = []<size_t... Ns>(const command_info<T> &cmd0, dpp::slashcommand_t const &event, std::span<dpp::command_data_option const> opts_, std::index_sequence<Ns...>) -> auto {
+							constexpr static auto get_param = []<size_t N>(const auto& param, dpp::slashcommand_t const &event, std::span<dpp::command_data_option const> opts_) {
+								return store_param_s<typename std::remove_cvref_t<decltype(param)>>{}(param, opts_, event.command.resolved);
+							};
+							return std::make_tuple(std::ref(event), get_param.template operator()<Ns>(std::get<Ns>(cmd0.options), event, opts_)...);
 						};
-						return std::make_tuple(std::ref(event), get_param.template operator()<Ns>(event, opts_)...);
-					};
-					co_return {co_await std::apply(Command.handler, get_args(event, opts, std::make_index_sequence<std::tuple_size_v<command_options>>{}))};
+						co_return command_result<R>{co_await std::apply(cmd.handler, get_args(cmd, event, opts, std::make_index_sequence<std::tuple_size_v<command_options>>{}))};
+					} else {
+						co_return command_result<R>{co_await std::invoke(cmd.handler, event)};
+					}
 				},
 				.subcommands = {}
 			};
 		}
 
-		template <const auto& CommandGroup, typename R>
-		constexpr command_handler<dpp::slashcommand_t, R>::command_node make_command_node() {
-			using command_node = command_handler<dpp::slashcommand_t, R>::command_node;
+		template <typename R, typename... Commands>
+		constexpr command_handler<dpp::slashcommand_t, R>::command_node make_command_node(const command_group<Commands...>& group) {
+			using command_node = typename command_handler<dpp::slashcommand_t, R>::command_node;
 
 			auto ret = {
-				.name = CommandGroup.name,
+				.name = group.name,
 				.parser = nullptr,
-				.subcommands = []<size_t... Ns>(std::index_sequence<Ns...>) -> std::vector<command_handler<dpp::slashcommand_t, R>::command_node> {
-					return {make_command_node<std::get<Ns>(CommandGroup.subobjects)>...};
-				}(std::make_index_sequence<std::tuple_size_v<decltype(CommandGroup.subobjects)>>{})
+				.subcommands = []<size_t... Ns>(const command_group<Commands...>& grp, std::index_sequence<Ns...>) -> std::vector<typename command_handler<dpp::slashcommand_t, R>::command_node> {
+					return {make_command_node<R>(std::get<Ns>(grp.subobjects))...};
+				}(group, std::index_sequence_for<Commands...>{})
 			};
 
 			std::sort(std::begin(ret.subcommands), std::end(ret.subcommands), [](const command_node &lhs, const command_node &rhs) { return std::less<>{}(lhs.name, rhs.name); });
 			return ret;
 		}
 
-		template <const auto &CommandTable, typename R>
-		command_handler<dpp::slashcommand_t, R>::command_node make_root() {
-			using command_node = command_handler<dpp::slashcommand_t, R>::command_node;
+		template <typename R, typename... Commands>
+		command_handler<dpp::slashcommand_t, R>::command_node make_root(const command_table<Commands...>& table) {
+			using command_node = typename command_handler<dpp::slashcommand_t, R>::command_node;
 
-			auto ret = []<size_t... Ns>(std::index_sequence<Ns...>) -> command_handler<dpp::slashcommand_t, R>::command_node {
-				return {{}, nullptr, {make_command_node<std::get<Ns>(CommandTable.subcommands), R>()...}};
-			}(std::make_index_sequence<CommandTable.args_n>{});
+			auto ret = []<size_t... Ns>(const command_table<Commands...>& tbl, std::index_sequence<Ns...>) -> command_handler<dpp::slashcommand_t, R>::command_node {
+				return {{}, nullptr, {make_command_node<R>(std::get<Ns>(tbl.subcommands))...}};
+			}(table, std::index_sequence_for<Commands...>{});
 
 			std::sort(std::begin(ret.subcommands), std::end(ret.subcommands), [](const command_node &lhs, const command_node &rhs) { return std::less<>{}(lhs.name, rhs.name); });
 			return ret;
@@ -637,9 +634,9 @@ namespace command {
 	}
 
 	template <typename R>
-	template <const auto &CommandTable>
-	static command_handler<dpp::slashcommand_t, R> command_handler<dpp::slashcommand_t, R>::from_command_table() {
-		return {detail::make_root<CommandTable, R>()};
+	template <typename... Commands>
+	command_handler<dpp::slashcommand_t, R> command_handler<dpp::slashcommand_t, R>::from_command_table(const command_table<Commands...> &table) {
+		return {detail::make_root<R>(table)};
 	}
 }
 

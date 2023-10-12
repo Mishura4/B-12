@@ -8,6 +8,8 @@
 #include <shion/utils/string_literal.h>
 #include <shion/types.h>
 
+#include <dpp/unicode_emoji.h>
+
 using namespace shion::literals;
 
 template <>
@@ -191,7 +193,8 @@ namespace B12
 			},
 			.PERMISSION_SEND_MESSAGES{"Send Messages"sv},
 			.PERMISSION_CREATE_INVITE{"Create Instant Invite"sv},
-			.PERMISSION_USE_APPLICATION_COMMANDS{"Use Application Commands"sv}
+			.PERMISSION_USE_APPLICATION_COMMANDS{"Use Application Commands"sv},
+			.BUTTON_LABEL_STUDY_TOGGLE{"Toggle Study Mode"sv}
 		};
 		// clang-format on
 

@@ -252,7 +252,7 @@ int Bot::run()
 				_s_instance->_onReadyEvent(e);
 			}
 		);
-		_bot->on_slashcommand([handler = command::command_handler<dpp::slashcommand_t, command::response>::from_command_table<command::COMMAND_TABLE>()](dpp::slashcommand_t event) -> dpp::job {
+		_bot->on_slashcommand([handler = command::command_handler<dpp::slashcommand_t, command::response>::from_command_table(command::COMMAND_TABLE)](dpp::slashcommand_t event) -> dpp::job {
 			command::command_result<command::response> response;
 			try {
 				response = co_await handler(event);

@@ -47,7 +47,7 @@
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       },
-      "debug": {"find": true}
+      "debug": { "find": true }
     },
     {
       "name": "clang-cl-base",
@@ -59,7 +59,7 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "clang-cl.exe",
         "CMAKE_CXX_COMPILER": "clang-cl.exe",
-        "CMAKE_RC_COMPILER":  "llvm-rc.exe"
+        "CMAKE_RC_COMPILER": "llvm-rc.exe"
       },
       "condition": {
         "type": "equals",
