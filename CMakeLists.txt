@@ -34,7 +34,7 @@ source_group(
 target_sources(B12
 	PRIVATE
 		${B12_SOURCES}
-)
+ "src/proto_dpp.h")
 
 set_target_properties(B12
 	PROPERTIES

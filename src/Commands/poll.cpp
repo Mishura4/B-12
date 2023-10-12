@@ -6,6 +6,8 @@
 #include <dpp/unicode_emoji.h>
 #include <source_location>
 
+#include "proto_dpp.h"
+
 namespace {
 	constexpr std::array numbers = std::to_array<const char*>({
 		dpp::unicode_emoji::one,
@@ -17,80 +19,6 @@ namespace {
 		dpp::unicode_emoji::seven,
 		dpp::unicode_emoji::eight
 	});
-}
-
-class api_error_exception : public dpp::exception {
-protected:
-	dpp::error_info err;
-
-public:
-	api_error_exception() = default;
-	api_error_exception(const dpp::error_info& error) : exception{error.human_readable}, err{error}
-	{}
-	api_error_exception(dpp::error_info&& error) : exception{error.human_readable}, err{std::move(error)}
-	{}
-
-	const dpp::error_info &get_error() const {
-		return err;
-	}
-};
-
-template <typename T>
-dpp::coroutine<T> or_throw(dpp::async<dpp::confirmation_callback_t>&& a) {
-	dpp::confirmation_callback_t &&result = std::move(co_await a);
-
-	if (!std::holds_alternative<T>(result.value)) {
-		if (result.is_error()) [[likely]] {
-			throw api_error_exception{result.get_error()};
-		}
-		else {
-			dpp::error_info err;
-
-			err.message = "wrong type supplied to or_throw";
-			err.human_readable = err.message;
-			throw api_error_exception{std::move(err)};
-		}
-	}
-	co_return std::get<T>(std::move(result).value);
-}
-
-template <typename T>
-dpp::coroutine<T> or_throw(const dpp::async<dpp::confirmation_callback_t>& a) {
-	dpp::confirmation_callback_t result = co_await a;
-
-	if (!std::holds_alternative<T>(result.value)) {
-		if (result.is_error()) [[likely]] {
-			throw api_error_exception{result.get_error()};
-		}
-		else {
-			dpp::error_info err;
-
-			err.message = "wrong type supplied to or_throw";
-			err.human_readable = err.message;
-			throw api_error_exception{std::move(err)};
-		}
-	}
-	co_return std::get<T>(result.value);
-}
-
-dpp::coroutine<void> or_throw(dpp::async<dpp::confirmation_callback_t> &a) {
-	decltype(auto) result = co_await a;
-
-	if (result.is_error()) {
-		throw api_error_exception{result.get_error()};
-	} else {
-		co_return;
-	}
-}
-
-dpp::coroutine<void> or_throw(dpp::async<dpp::confirmation_callback_t> &&a) {
-	decltype(auto) result = co_await a;
-
-	if (result.is_error()) {
-		throw api_error_exception{result.get_error()};
-	} else {
-		co_return;
-	}
 }
 
 namespace {
@@ -160,22 +88,6 @@ void try_parse_choice(std::vector<poll_choice> &v, B12::command::optional_param<
 	if (!text.has_value())
 		return;
 	v.emplace_back(parse_choice(*text));
-}
-
-std::string get_member_nickname(const dpp::user &user, const dpp::guild_member &member) {
-	std::string member_nick = member.get_nickname();
-
-	if (!member_nick.empty())
-		return member_nick;
-	return user.global_name;
-}
-
-std::string get_member_avatar(const dpp::user &user, const dpp::guild_member &member) {
-	std::string member_av = member.get_avatar_url();
-
-	if (member_av.empty())
-		return user.get_avatar_url();
-	return member_av;
 }
 
 constexpr bool is_valid_poll_param(std::string_view str) noexcept {
@@ -282,7 +194,7 @@ dpp::coroutine<response> poll(
 
 		message.add_embed(
 			dpp::embed{}
-			.set_footer(fmt::format("{} ({})", get_member_nickname(author, author_member), author.username), get_member_avatar(author, author_member))
+			.set_footer(fmt::format("{} ({})", dpp::utility::get_member_display_name(author, author_member), author.username), dpp::utility::get_member_avatar_url(author, author_member))
 			.set_description(fmt::format("{}", fmt::join(lines, "\n")))
 		);
 		co_await or_throw(event.co_edit_original_response(message));
