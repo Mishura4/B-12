@@ -8,6 +8,8 @@
 #include <string_view>
 #include <optional>
 #include <utility>
+#include <ranges>
+#include <charconv>
 
 #include <dpp/dpp.h>
 
@@ -40,7 +42,7 @@ namespace command {
 	constexpr inline auto option_api_type<dpp::channel> = dpp::co_channel;
 
 	template <>
-	constexpr inline auto option_api_type<dpp::message> = dpp::co_string;
+	constexpr inline auto option_api_type<dpp::snowflake> = dpp::co_string;
 
 	template <std::convertible_to<std::string_view> Stringlike>
 	constexpr inline auto option_api_type<Stringlike> = dpp::co_string;
@@ -174,10 +176,9 @@ namespace command {
 	template <typename... Subs>
 	struct command_group {
 		static constexpr inline size_t args_n = sizeof...(Subs);
-		consteval command_group(std::string_view group_name, Subs&&... subs) :
-			name{group_name}, subobjects{std::forward<Subs>(subs)...} {}
 
 		std::string_view name;
+		std::string_view description;
 		std::tuple<Subs...> subobjects;
 	};
 
@@ -191,7 +192,7 @@ namespace command {
 	};
 
 	template <typename... Subs>
-	command_group(std::string_view, Subs...) -> command_group<Subs...>;
+	command_group(std::string_view, std::string_view, Subs...) -> command_group<Subs...>;
 
 	enum class command_error {
 		internal_error,
@@ -328,6 +329,39 @@ namespace command {
 						continue;
 
 					return std::get<std::string>(opt.value);
+				}
+				if constexpr (command_option<Type>::is_optional) {
+					return std::nullopt;
+				} else {
+					throw dpp::parse_exception("missing option " + std::string{option.info.name});
+				}
+			}
+		};
+
+		template <typename Type>
+		requires (std::same_as<command_data_type<Type>, dpp::snowflake>)
+		struct store_param_s<command_option<Type>> {
+			std::remove_cvref_t<Type> operator()(const command_option<Type> &option, std::span<dpp::command_data_option const> &opts, const dpp::command_resolved &) const {
+				for (dpp::command_data_option const &opt : opts) {
+					if (opt.type != command_option<Type>::api_type || opt.name != option.info.name)
+						continue;
+
+					namespace views = std::ranges::views;
+					constexpr auto skipping = [](char c) constexpr noexcept {
+						return c == ' ' || c== '\t';
+					};
+
+					const std::string& str_param = std::get<std::string>(opt.value);
+					auto begin = std::ranges::find_if_not(str_param, skipping);
+					auto end = std::ranges::find_if_not(str_param | views::reverse, skipping);
+					std::string_view str = {begin, (end == str_param.rend() ? str_param.end() : end.base())};
+					if (str.size() <= 20) {
+						uint64_t value;
+						const auto [ptr, errc] = std::from_chars(str.data(), str.data() + str.size(), value);
+						if (errc == std::errc{})
+							return value;
+					}
+					throw dpp::parse_exception("invalid snowflake for " + std::string{option.info.name});
 				}
 				if constexpr (command_option<Type>::is_optional) {
 					return std::nullopt;
@@ -607,7 +641,7 @@ namespace command {
 		constexpr command_handler<dpp::slashcommand_t, R>::command_node make_command_node(const command_group<Commands...>& group) {
 			using command_node = typename command_handler<dpp::slashcommand_t, R>::command_node;
 
-			auto ret = {
+			auto ret = command_node{
 				.name = group.name,
 				.parser = nullptr,
 				.subcommands = []<size_t... Ns>(const command_group<Commands...>& grp, std::index_sequence<Ns...>) -> std::vector<typename command_handler<dpp::slashcommand_t, R>::command_node> {

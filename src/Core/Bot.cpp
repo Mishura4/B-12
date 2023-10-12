@@ -255,7 +255,13 @@ int Bot::run()
 		_bot->on_slashcommand([handler = command::command_handler<dpp::slashcommand_t, command::response>::from_command_table(command::COMMAND_TABLE)](dpp::slashcommand_t event) -> dpp::job {
 			command::command_result<command::response> response;
 			try {
+#ifdef B12_DEBUG
+				std::string &name = std::get<dpp::command_interaction>(event.command.data).name;
+
+				if (name.starts_with("dev_"))
+					name = name.substr(4);
 				response = co_await handler(event);
+#endif
 			} catch (const std::exception &e) {
 				B12::log(LogLevel::ERROR, format_command_error(event, e.what()));
 				response.value = command::command_error::internal_error;

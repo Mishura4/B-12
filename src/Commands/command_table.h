@@ -9,20 +9,20 @@ namespace command {
 
 	inline constexpr command_table COMMAND_TABLE = {
 		command_info{"meow", "Meow to me!", &meow},
-		command_info{"study", "Toggle study mode", &study},/*
-		command_group{"server",
-			command_group{"settings",
+		command_info{"study", "Toggle study mode", &study},
+		command_group{"server", "Server settings",
+			/*command_group{"settings",
 				command_info{"study", "Set the server's study role and channel", &server_settings_study,
 					{{"role", "New study role"}, {"channel", "New study channel"}}
 				}
-			},
-			command_group{"sticker",
+			},*/
+			command_group{"sticker", "Server stickers",
 				command_info{"grab", "Grab a sticker from a message", &server_sticker_grab,
 					{{"message", "Message to grab from"}, {"channel", "Channel to grab from (defaults to current)"}}
 				}
 			}
 		},
-		*/command_info{"bigmoji", "Make an emoji big", &bigmoji, {{"emoji", "Emoji to show"}}},
+		command_info{"bigmoji", "Make an emoji big", &bigmoji, {{"emoji", "Emoji to show"}}},
 		command_info{"ban", "Ban a user", &ban,
 			{{"user", "User to ban"}, {"time", "Duration of the ban"}, {"reason", "Reason for the ban"}}
 		},

@@ -54,6 +54,7 @@ namespace command {
 		dpp::command_option to_subcommand(const command_group<Ts...> &group) {
 			dpp::command_option s;
 			s.name = group.name;
+			s.description = group.description;
 			[]<size_t... Ns>(dpp::command_option &s_, const std::tuple<Ts...> &group_, std::index_sequence<Ns...>) {
 				(s_.add_option(to_subcommand(std::get<Ns>(group_))), ...);
 			}(s, group.subobjects, std::make_index_sequence<sizeof...(Ts)>{});
@@ -65,6 +66,7 @@ namespace command {
 			dpp::slashcommand s;
 
 			s.name = group.name;
+			s.description = group.description;
 			s.application_id = app_id;
 			[]<size_t... Ns>(dpp::slashcommand &s_, const std::tuple<Ts...> &group_, std::index_sequence<Ns...>) {
 				(s_.add_option(to_subcommand(std::get<Ns>(group_))), ...);
