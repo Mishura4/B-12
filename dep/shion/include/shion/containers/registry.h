@@ -200,12 +200,12 @@ namespace shion
     {
       using type = T;
 
-      dynamic_registry_storage(nullptr_t, T *external) :
+      dynamic_registry_storage(std::nullptr_t, T *external) :
         storage{nullptr},
         ptr{external}
       {}
 
-      dynamic_registry_storage(T &&value, nullptr_t) :
+      dynamic_registry_storage(T &&value, std::nullptr_t) :
         storage{std::make_unique<T>(std::forward<T>(value))},
         ptr{storage.get()}
       {}
@@ -215,7 +215,7 @@ namespace shion
     };
 
     template <typename T>
-    dynamic_registry_storage(nullptr_t, T *) -> dynamic_registry_storage<T>;
+    dynamic_registry_storage(std::nullptr_t, T *) -> dynamic_registry_storage<T>;
 
     template <typename T>
     dynamic_registry_storage(T *, T *) -> dynamic_registry_storage<T>;

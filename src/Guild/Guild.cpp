@@ -18,7 +18,7 @@ namespace
 		uint64 action;
 	};
 
-	template <typename T>
+	/*template <typename T>
 	constexpr auto from_string = [](std::string_view str) -> std::optional<T>
 	{
 		T ret;
@@ -27,7 +27,7 @@ namespace
 		if (err != std::errc{} || ptr != str.data() + str.size())
 			return {std::nullopt};
 		return {ret};
-	};
+	};*/
 
 	constexpr auto parse_button_id = [](std::string_view params) -> std::optional<ButtonID>
 	{
@@ -40,11 +40,22 @@ namespace
 				std::string_view& params
 			) -> std::optional<boost::pfr::tuple_element_t<N, ButtonID>>
 			{
+				using type = boost::pfr::tuple_element_t<N, ButtonID>;
 				if (params.empty())
 					return {std::nullopt};
 				auto end    = params.find(':');
-				auto substr = params.substr(0, end);
-				auto value  = from_string<boost::pfr::tuple_element_t<N, ButtonID>>(substr);
+				auto substr = std::string{params.substr(0, end)};
+				type value;
+
+				if constexpr (std::is_integral_v<type>)
+				{
+					if constexpr (std::is_signed_v<type>)
+						value = static_cast<type>(std::stoll(substr));
+					else
+						value = static_cast<type>(std::stoul(substr));
+				}
+				else if constexpr (std::is_floating_point_v<type>)
+					value = static_cast<type>(std::stold(substr));
 				params      = (end == std::string::npos ? std::string_view{} : params.substr(end + 1));
 
 				if (!value)

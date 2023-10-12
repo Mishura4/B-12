@@ -311,10 +311,11 @@ int Bot::run()
 				guild->handleButtonClick(e);
 			}
 		);
+
 #ifdef B12_DEBUG
 		/*
 		_bot->on_message_create.co_attach(
-			[](const dpp::message_create_t& e) -> dpp::task<void>
+			[this](const dpp::message_create_t& e) -> dpp::task<void>
 			{
 				if (e.msg.author == e.from->creator->me.id)
 					co_return;
@@ -323,7 +324,7 @@ int Bot::run()
 					if (debug_channel_json->is_string())
 					{
 						auto&  as_str = debug_channel_json->get_ref<const std::string&>();
-						uint64 id     = stoull(as_str); // TODO: ERROR HANDLING
+						uint64 id     = std::stoull(as_str); // TODO: ERROR HANDLING
 
 						if (id != e.msg.channel_id)
 							co_return;

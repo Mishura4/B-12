@@ -13,6 +13,11 @@ set(BUILD_SHARED_LIBRARIES OFF)
 project(B12
 		LANGUAGES CXX)
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>")
+	add_link_options("$<$<COMPILE_LANGUAGE:CXX>:-lc++abi>")
+endif()
+
 add_executable(B12)
 
 add_subdirectory(src/)

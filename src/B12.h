@@ -44,7 +44,7 @@ namespace B12
 
 	using app_time = std::chrono::steady_clock::time_point;
 	using file_time = std::chrono::file_clock::time_point;
-	using utc_time = std::chrono::utc_clock::time_point;
+	//	using utc_time = std::chrono::utc_clock::time_point;
 
 	struct empty_t
 	{};
@@ -161,7 +161,7 @@ namespace B12
 				const dpp::http_request_completion_t& res = result;
 
 				if (res.error != dpp::h_success)
-					_on_error(dpp::error_info{static_cast<uint32_t>(res.error), fmt::format("error code {}", res.error), {}});
+					_on_error(dpp::error_info{static_cast<uint32_t>(res.error), fmt::format("error code {}", static_cast<std::underlying_type_t<dpp::http_error>>(res.error)), {}});
 				else
 					_on_success(res);
 			}

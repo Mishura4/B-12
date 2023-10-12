@@ -251,7 +251,7 @@ namespace B12
 					constexpr auto line = shion::literal_concat("\n\t", _getFieldName<N>(), " = ?");
 
 					num_edited_fields++;
-					if (oss.view().size())
+					if (oss.tellp() != std::streampos(0))
 						oss << ", ";
 					oss << std::string_view(line);
 				}
@@ -262,7 +262,7 @@ namespace B12
 					std::stringstream ss;
 
 					(fillFieldRelational<N>(ss), ...);
-					oss << ss.view();
+					oss << std::move(ss.str());
 				}
 
 				const Entry& entry;
