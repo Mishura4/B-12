@@ -7,14 +7,11 @@ set(DPP_CORO ON)
 set(DPP_USE_PCH ON)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/fmt)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/shion)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/boost_pfr)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/magic_enum)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/DPP)
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/expected-lite)
-
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/libpng)
-
-configure_file(libpng/scripts/pnglibconf.h.prebuilt libpng/pnglibconf.h COPYONLY)
 
 include(FetchContent)
 

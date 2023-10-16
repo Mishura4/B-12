@@ -15,11 +15,11 @@
 	url = https://github.com/martinmoene/expected-lite.git
 	branch = master
 [submodule "dep/CImg"]
-	path = dep/CImg
+	path = dep/shion/dep/CImg
 	url = https://github.com/GreycLab/CImg.git
 	branch = master
 [submodule "dep/libpng"]
-	path = dep/libpng
+	path = dep/shion/dep/libpng
 	url = https://github.com/glennrp/libpng
 	branch = master
 [submodule "dep/DPP-PRs"]

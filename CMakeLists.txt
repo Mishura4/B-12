@@ -45,10 +45,6 @@ target_compile_features(B12 PUBLIC cxx_std_20)
 add_subdirectory(dep)
 
 target_include_directories(B12 PRIVATE src/)
-target_include_directories(B12 PRIVATE dep/shion/include)
-target_include_directories(B12 PRIVATE dep/libpng)
-target_include_directories(B12 PRIVATE dep/CImg)
-target_include_directories(B12 PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/dep/libpng)
 
 target_link_libraries(B12 PUBLIC fmt)
 target_link_libraries(B12 PUBLIC sqlite3)
@@ -56,7 +52,7 @@ target_link_libraries(B12 PUBLIC dpp)
 target_link_libraries(B12 PUBLIC boost_pfr)
 target_link_libraries(B12 PUBLIC magic_enum)
 target_link_libraries(B12 PUBLIC nonstd::expected-lite)
-target_link_libraries(B12 PUBLIC png_static)
+target_link_libraries(B12 PUBLIC shion)
 
 if (UNIX)
 	find_package(X11 REQUIRED)
@@ -95,9 +91,10 @@ if(MSVC)
 			$<TARGET_FILE:dpp>
 			$<TARGET_FILE:fmt>
 			$<TARGET_FILE:sqlite3>
-			$<TARGET_FILE_DIR:B12>)
+			$<TARGET_FILE:shion>)
 
-	add_custom_target(COPY_DEPENDENCIES ALL
+	add_custom_command(TARGET B12
+		POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
 			${B12_DEPENDENCIES}
 			$<TARGET_FILE_DIR:B12>
