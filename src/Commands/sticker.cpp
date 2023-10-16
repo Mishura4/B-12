@@ -1,7 +1,5 @@
 #include "Core/Bot.h"
 
-#include "Command.h"
-#include "CommandResponse.h"
 #include "../Data/Lang.h"
 
 #include "commands.h"

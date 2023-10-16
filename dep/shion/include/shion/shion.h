@@ -7,6 +7,8 @@
 #  else
 #    define SHION_EXPORT __declspec(dllimport)
 #  endif
+#else
+# define SHION_EXPORT
 #endif
 
 #ifndef SHION_BUILD

@@ -1,7 +1,5 @@
 #include "B12.h"
 
-#include "Commands/Command.h"
-#include "Commands/CommandHandler.h"
 #include "Core/Bot.h"
 
 #include "PokemonAPI.h"
@@ -10,11 +8,9 @@
 
 #include <regex>
 
-#include "../Commands/CommandResponse.h"
-
 using namespace B12;
 
-template <>
+/*template <>
 CommandResponse CommandHandler::command<"pokemon dex">(
 	command_option_view options
 )
@@ -79,4 +75,4 @@ CommandResponse CommandHandler::command<"pokemon dex">(
 	response = {CommandResponse::Success{}, {std::move(foo)}};
 	return {response};
 }
-
+*/

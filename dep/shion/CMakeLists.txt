@@ -57,6 +57,11 @@ PRIVATE
 	${SHION_SOURCES}
 )
 
+target_compile_options(shion
+	PRIVATE
+		$<$<PLATFORM_ID:Linux>:-fPIC;-Wall;-Wextra;-Wpedantic>
+)
+
 target_include_directories(shion
 PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include/>
@@ -72,4 +77,4 @@ target_include_directories(shion PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/dep/libpng)
 
 configure_file(dep/libpng/scripts/pnglibconf.h.prebuilt dep/libpng/pnglibconf.h COPYONLY)
 
-target_link_libraries(shion PRIVATE png_static)
+target_link_libraries(shion PRIVATE png)

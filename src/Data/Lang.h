@@ -133,7 +133,7 @@ namespace B12
 			fmt<>                              ERROR_STUDY_BAD_SETTINGS;
 
 			fmt<>             STUDY_CHANNEL_WELCOME;
-			fmt<dpp::channel> COMMAND_STUDY_ADDED;
+			fmt<dpp::snowflake> COMMAND_STUDY_ADDED;
 			fmt<>             COMMAND_STUDY_REMOVED;
 
 			fmt<> PERMISSION_SEND_MESSAGES;
@@ -186,7 +186,7 @@ namespace B12
 			.COMMAND_STUDY_ADDED{
 				"You have entered study mode! Your access to all the other channels is now locked.\n"
 				"The channel you are currently in is effectively a ghost. No new messages will appear, and commands will fail.\n"
-				"Head to {} to disable study mode."
+				"Head to <#{}> to disable study mode."
 			},
 			.COMMAND_STUDY_REMOVED{
 				"You have been taken out of study mode and have regained access to the server."

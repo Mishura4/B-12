@@ -1,7 +1,5 @@
 #include "B12.h"
 
-#include "Commands/CommandTable.h"
-
 #include "Data/DataStores.h"
 #include "Data/DataStructures.h"
 #include "Data/Lang.h"
@@ -300,21 +298,6 @@ int Bot::run()
 			[](const auto& e)
 			{
 				_s_instance->_onMessageCreateEvent(e);
-			}
-		);
-		_bot->on_button_click(
-			[](const dpp::button_click_t& e)
-			{
-				return;
-				Guild* guild = _s_instance->fetchGuild(e.command.guild_id);
-				if (!guild)
-				{
-					e.reply(
-						dpp::message{lang::DEFAULT.ERROR_GENERIC_COMMAND_FAILURE}.set_flags(dpp::m_ephemeral)
-					);
-					return;
-				}
-				guild->handleButtonClick(e);
 			}
 		);
 

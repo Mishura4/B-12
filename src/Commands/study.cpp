@@ -2,12 +2,13 @@
 
 #include "Core/Bot.h"
 
-#include "Study.h"
-#include "Command.h"
+#include "study.h"
 #include "Data/DataStores.h"
 #include "Data/Lang.h"
 
 #include "command_handler.h"
+
+#include "commands.h"
 
 #include <algorithm>
 
@@ -17,34 +18,38 @@ using namespace B12::command;
 
 namespace
 {
-	//constexpr auto STUDY_EMOJI = "\xF0\x9F\x93\x96"sv;
-
-	/*void add_study_button(dpp::message& m)
+	command::response get_study_info_message(Guild* guild)
 	{
-		m.add_component(
-			dpp::component{}.add_component(
-				dpp::component{}.set_emoji(std::string(STUDY_EMOJI)).set_id(STUDY_COMMAND_BUTTON_ID)
-			)
-		);
-	}*/
-}
+		const auto& curRole    = guild->studyRole();
+		const auto& curChannel = guild->studyChannel();
 
-#include "commands.h"
+		return response::reply(
+			response::success(fmt::format(
+				"Welcome to the `/study` installation wizard! <:catthumbsup:1066427078284681267>\n\n"
+				"Current study role is <@&{}>\n"
+				"Current study channel is <#{}>\n\n"
+				"To change these settings, please use "
+				"`/server study settings` with command parameters.",
+				(curRole ? curRole->str() : "(none)"),
+				(curChannel ? curChannel->str() : "(none)")
+			))
+		);
+	}
+}
 
 dpp::coroutine<command::response> command::study(dpp::interaction_create_t const &event)
 {
 	Guild*          guild = Bot::fetchGuild(event.command.guild_id);
-	CommandResponse reply;
 
 	if (!guild->studyRole() || !guild->studyChannel())
 		co_return {response::usage_error(lang::DEFAULT.ERROR_STUDY_BAD_SETTINGS)};
 	auto *cluster = event.from->creator;
-	const dpp::role&         studyRole = guild->studyRole().value();
+	const dpp::snowflake         studyRole = *guild->studyRole();
 	const dpp::guild_member& issuer    = event.command.member;
 
 	auto thinking = event.co_thinking(true);
-	if (std::ranges::find(issuer.get_roles(), studyRole.id) != issuer.get_roles().end()) {
-		auto&& confirm = co_await event.from->creator->co_guild_member_remove_role(event.command.guild_id, event.command.usr.id, studyRole.id);
+	if (std::ranges::find(issuer.get_roles(), studyRole) != issuer.get_roles().end()) {
+		auto&& confirm = co_await event.from->creator->co_guild_member_remove_role(event.command.guild_id, event.command.usr.id, studyRole);
 		co_await thinking;
 		if (confirm.is_error()) {
 			cluster->log(dpp::ll_error, fmt::format("could not remove study role from {}: {}", event.command.usr.format_username(), confirm.get_error().message));
@@ -53,7 +58,7 @@ dpp::coroutine<command::response> command::study(dpp::interaction_create_t const
 		co_return {response::success(), response::action_t::edit};
 	}
 	else {
-		auto&& confirm = co_await event.from->creator->co_guild_member_add_role(event.command.guild_id, event.command.usr.id, studyRole.id);
+		auto&& confirm = co_await event.from->creator->co_guild_member_add_role(event.command.guild_id, event.command.usr.id, studyRole);
 		co_await thinking;
 		if (confirm.is_error()) {
 			cluster->log(dpp::ll_error, fmt::format("could not add study role to {}: {}", event.command.usr.format_username(), confirm.get_error().message));

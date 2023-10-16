@@ -1,13 +1,10 @@
 #include "B12.h"
 
-#include "Command.h"
 #include "Core/Bot.h"
 
 #include "Guild/Guild.h"
 
 #include <regex>
-
-#include "CommandHandler.h"
 
 #include "commands.h"
 

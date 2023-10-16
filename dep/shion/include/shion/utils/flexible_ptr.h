@@ -108,7 +108,7 @@ public:
 		* @brief Set to nullptr.
 		*/
 	void reset() noexcept {
-		ptr.emplace<std::nullptr_t>(nullptr);
+		ptr.template emplace<std::nullptr_t>(nullptr);
 	}
 
 	/**
@@ -117,7 +117,7 @@ public:
 	template <typename U>
 	requires (std::convertible_to<U, observer_ptr>)
 	void point(U p) noexcept {
-		ptr.emplace<observer_ptr>(p);
+		ptr.template emplace<observer_ptr>(p);
 	}
 
 	/**
@@ -126,7 +126,7 @@ public:
 	template <typename U>
 	requires (std::convertible_to<U, owning_ptr>)
 	void grab(U&& p) noexcept {
-		ptr.emplace<owning_ptr>(std::forward<U>(p));
+		ptr.template emplace<owning_ptr>(std::forward<U>(p));
 	}
 
 	/**

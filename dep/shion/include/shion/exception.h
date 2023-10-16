@@ -27,7 +27,7 @@ public:
 	exception(T&& msg, std::source_location loc = std::source_location::current()) :
 		exception{"shion::exception", std::forward<T>(msg), loc} {}
 
-	const char *what() const override {
+	const char *what() const noexcept override {
 		return (message.c_str());
 	}
 

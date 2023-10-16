@@ -6,6 +6,11 @@ B-12 is a discord bot written in C++ using the library [D++](https://github.com/
 
 Some of the code was written in haste and as I was getting used to C++20, and as such may be crude and not make optimal use of newer features such as the ranges library.
 
+### Supported compilers
+- MSVC 19.37 and above
+- clang++-17 with libc++-17
+- g++13 may or may not work
+
 ## License
 #### B12 is currently licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).
 

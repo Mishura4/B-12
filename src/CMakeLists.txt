@@ -6,21 +6,13 @@ set(API_SOURCES
 )
 
 set(COMMAND_SOURCES
-    Command.cpp
-    Command.h
-    CommandSource.h
-    CommandSource.cpp
-    CommandResponse.h
-    CommandResponse.cpp
-    CommandHandler.h
-    CommandHandler.cpp
-    CommandTable.h
     sticker.cpp
-    Study.cpp
-    Study.h
+    study.cpp
+    study.h
     ban.cpp
     commands.h
     commands.cpp
+    command.cpp
     command_handler.h
     command_table.h
     poll.cpp
