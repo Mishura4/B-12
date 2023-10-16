@@ -444,7 +444,7 @@ void Bot::_onReadyEvent(const dpp::ready_t &event)
 			s.name = "dev_" + s.name;
 		}
 #endif
-		event.from->creator->global_bulk_command_create(v);
+		//event.from->creator->global_bulk_command_create(v);
 		/*
 		_commandTable =
 			_gatherCommands(std::make_index_sequence<std::tuple_size_v<decltype(COMMAND_TABLE)>>());

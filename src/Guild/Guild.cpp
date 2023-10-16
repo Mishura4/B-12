@@ -77,15 +77,6 @@ namespace
 Guild::Guild(dpp::snowflake id) :
 	_settings{DataStores::guild_settings.get(id)}
 {
-	try
-	{
-		_guild = *dpp::find_guild(id);
-		_me    = dpp::find_guild_member(id, Bot::bot().me.id);
-	}
-	catch (const dpp::rest_exception& e)
-	{
-		B12::log(B12::LogLevel::ERROR, "Error while resolving data for guild {} : {}", id, e.what());
-	}
 	loadGuildSettings();
 }
 

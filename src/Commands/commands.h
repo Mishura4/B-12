@@ -71,7 +71,7 @@ namespace command {
 
 	dpp::coroutine<response> meow(dpp::interaction_create_t const &event);
 	dpp::coroutine<response> study(dpp::interaction_create_t const &event);
-	dpp::coroutine<response> server_settings_study(dpp::interaction_create_t const &event, const dpp::role &role, optional_param<const dpp::channel &> channel);
+	dpp::coroutine<response> server_settings_study(dpp::interaction_create_t const &event, optional_param<const dpp::role &> role, optional_param<const dpp::channel &> channel);
 	dpp::coroutine<response> server_sticker_grab(dpp::interaction_create_t const &event, dpp::snowflake message_id, optional_param<const dpp::channel &> channel);
 	dpp::coroutine<response> bigmoji(dpp::interaction_create_t const &event, const std::string &emoji);
 	dpp::coroutine<response> ban(dpp::interaction_create_t const &event, resolved_user user, optional_param<std::chrono::seconds> duration, optional_param<std::string_view> reason);

@@ -177,6 +177,9 @@ namespace command {
 	struct command_group {
 		static constexpr inline size_t args_n = sizeof...(Subs);
 
+		consteval command_group(std::string_view n, std::string_view desc, Subs&&... subs) :
+			name{n}, description{desc}, subobjects{std::forward<Subs>(subs)...} {}
+
 		std::string_view name;
 		std::string_view description;
 		std::tuple<Subs...> subobjects;
