@@ -77,7 +77,7 @@ auto command::ban(
 			const dpp::button_click_t &button_clicked = response.get<0>();
 
 			if (button_clicked.custom_id.ends_with("_confirm")) {
-				if (!button_clicked.command.get_issuer_permissions().can(dpp::p_ban_members)) {
+				if (!button_clicked.command.get_resolved_permission(button_clicked.command.usr.id).can(dpp::p_ban_members)) {
 					button_clicked.reply(dpp::message{"You do not have the permissions to do this!"}.set_flags(dpp::m_ephemeral));
 					continue;
 				}
