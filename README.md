@@ -12,6 +12,6 @@ Some of the code was written in haste and as I was getting used to C++20, and as
 - g++13 may or may not work
 
 ## License
-#### B12 is currently licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+**B12 is currently licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/).**
 
 Feel free to pull the code, build it, run it, contribute via pull requests, however you may not distribute your modifications to the source code in any other way.
